@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE configuration
+  PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+    <settings>
+        <!-- 开启驼峰命名自动映射：将 user_name 映射为 userName -->
+        <setting name="mapUnderscoreToCamelCase" value="true" />
+        <!-- 开启自动生成主键支持 -->
+        <setting name="useGeneratedKeys" value="true"/>
+        <!-- 打印 SQL (开发阶段方便调试) -->
+        <setting name="logImpl" value="STDOUT_LOGGING"/>
+    </settings>
+    <typeAliases>
+        <!-- 将实体类的包配置别名，这样 Mapper.xml 中可以直接使用类名 -->
+        <package name="com.chatroom.tieba.entity"/>
+    </typeAliases>
+</configuration>

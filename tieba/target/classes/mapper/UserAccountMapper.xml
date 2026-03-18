@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.chatroom.tieba.mapper.UserAccountMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO forum_user_account(username, password_hash, status, created_at, updated_at)
+        VALUES(#{username}, #{passwordHash}, #{status}, NOW(), NOW())
+    </insert>
+
+    <select id="findByUsername" resultType="UserAccount">
+        SELECT * FROM forum_user_account WHERE username = #{username} LIMIT 1
+    </select>
+
+</mapper>

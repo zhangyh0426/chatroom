@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.chatroom.tieba.mapper.ChatMessageMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO forum_chat_message(room_id, user_id, message_type, content, status, created_at)
+        VALUES(#{roomId}, #{userId}, #{messageType}, #{content}, 1, NOW())
+    </insert>
+
+    <!-- room_id = 1 是我们在数据库脚本里约定的全局大厅 GLOBAL ID -->
+    <!-- 由于是历史消息加载，通常倒序取最近的，为了让视图显示方便，取大ID -->
+    <select id="findRecentGlobalMessages" resultType="com.chatroom.tieba.vo.ChatMessageVO">
+        SELECT m.*, u.nickname, u.avatar_path 
+        FROM forum_chat_message m 
+        LEFT JOIN forum_user_profile u ON m.user_id = u.user_id 
+        WHERE m.room_id = 1 AND m.status = 1 
+        ORDER BY m.id DESC 
+        LIMIT #{limit}
+    </select>
+
+</mapper>
