@@ -1,0 +1,40 @@
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs
+*.log
+logs/
+
+# IDE and editor files
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# Eclipse / STS
+**/.classpath
+**/.project
+**/.settings/
+**/.factorypath
+
+# Java / Maven build outputs
+**/target/
+**/out/
+**/build/
+*.class
+*.war
+*.jar
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Runtime / local data
+data/
+uploads/
