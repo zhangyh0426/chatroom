@@ -12,7 +12,7 @@
         http://www.springframework.org/schema/tx/spring-tx.xsd">
 
     <!-- 加载配置文件 -->
-    <context:property-placeholder location="classpath:jdbc.properties" />
+    <context:property-placeholder location="classpath:application.properties" />
 
     <!-- 组件扫描: 排除 @Controller, 这是 Spring MVC 管的 -->
     <context:component-scan base-package="com.chatroom.tieba">
@@ -30,6 +30,11 @@
         <property name="minimumIdle" value="5"/>
         <property name="idleTimeout" value="30000"/>
         <property name="poolName" value="TiebaHikariCP"/>
+    </bean>
+
+    <!-- 提供 JdbcTemplate 给启动检查器与 JDBC 访问逻辑 -->
+    <bean id="jdbcTemplate" class="org.springframework.jdbc.core.JdbcTemplate">
+        <property name="dataSource" ref="dataSource" />
     </bean>
 
     <!-- 配置 SqlSessionFactoryBean -->

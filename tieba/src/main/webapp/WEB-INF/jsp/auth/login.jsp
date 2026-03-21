@@ -3,11 +3,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <jsp:include page="/WEB-INF/jsp/common/head.jsp" />
     <title>用户登录 - 本地吧</title>
-    <link rel="stylesheet" href="${pageContext.request.contextPath}/static/css/apple-ui.css">
-    <script defer src="${pageContext.request.contextPath}/static/js/apple-ui.js"></script>
 </head>
 <body class="auth-page">
     <main class="auth-shell">
@@ -23,13 +20,16 @@
             <p class="auth-subtitle">继续浏览贴吧动态、参与实时聊天室和主题讨论。</p>
 
             <c:if test="${not empty error}">
-                <div class="alert alert-error">${error}</div>
+                <div class="alert alert-error"><c:out value="${error}" /></div>
             </c:if>
             <c:if test="${not empty msg}">
-                <div class="alert alert-success">${msg}</div>
+                <div class="alert alert-success"><c:out value="${msg}" /></div>
             </c:if>
 
             <form action="${pageContext.request.contextPath}/auth/login" method="post">
+                <c:if test="${not empty returnTo}">
+                    <input type="hidden" name="returnTo" value="<c:out value='${returnTo}' />">
+                </c:if>
                 <div class="form-group">
                     <label class="form-label" for="username">用户名</label>
                     <input type="text" id="username" name="username" class="form-control" required>

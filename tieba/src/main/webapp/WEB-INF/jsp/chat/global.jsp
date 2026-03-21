@@ -1,14 +1,12 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 <%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
+<%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <jsp:include page="/WEB-INF/jsp/common/head.jsp" />
     <title>全站公共聊天室 - 本地贴吧</title>
-    <link rel="stylesheet" href="${pageContext.request.contextPath}/static/css/apple-ui.css">
-    <script defer src="${pageContext.request.contextPath}/static/js/apple-ui.js"></script>
 </head>
 <body class="page-chat">
     <jsp:include page="../common/header.jsp" />
@@ -28,7 +26,20 @@
                 <c:forEach items="${history}" var="msg">
                     <div class="chat-row ${sessionScope.user.id == msg.userId ? 'self' : ''}">
                         <div class="chat-avatar">
-                            <img src="${pageContext.request.contextPath}/static/img/default-avatar.png" alt="avatar" onerror="this.src='data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='">
+                            <c:choose>
+                                <c:when test="${not empty msg.avatar}">
+                                    <c:set var="historyAvatarUrl" value="${msg.avatar}" />
+                                    <c:if test="${not (fn:startsWith(historyAvatarUrl, 'http://')
+                                                       or fn:startsWith(historyAvatarUrl, 'https://')
+                                                       or fn:startsWith(historyAvatarUrl, pageContext.request.contextPath))}">
+                                        <c:set var="historyAvatarUrl" value="${pageContext.request.contextPath}${historyAvatarUrl}" />
+                                    </c:if>
+                                    <img src="${historyAvatarUrl}" alt="avatar" onerror="this.src='${pageContext.request.contextPath}/static/img/default-avatar.svg'">
+                                </c:when>
+                                <c:otherwise>
+                                    <img src="${pageContext.request.contextPath}/static/img/default-avatar.svg" alt="avatar">
+                                </c:otherwise>
+                            </c:choose>
                         </div>
                         <div>
                             <div class="chat-meta">
@@ -49,12 +60,16 @@
     </main>
 
     <script>
-        var wsUrl = 'ws://' + location.host + '${pageContext.request.contextPath}/ws/chat/global';
+        var wsScheme = location.protocol === 'https:' ? 'wss://' : 'ws://';
+        var wsUrl = wsScheme + location.host + '${pageContext.request.contextPath}/ws/chat/rooms/GLOBAL';
         var ws;
         var currentUserId = '${sessionScope.user.id}';
+        var appContextPath = '${pageContext.request.contextPath}';
         var statusLabel = document.getElementById('ws-status');
         var chatBox = document.getElementById('chat-box');
         var chatInput = document.getElementById('chat-input');
+        var reconnectTimer = null;
+        var canReconnect = true;
 
         function setStatus(label, cls) {
             statusLabel.textContent = label;
@@ -65,6 +80,9 @@
         }
 
         function connect() {
+            if (!canReconnect) {
+                return;
+            }
             ws = new WebSocket(wsUrl);
 
             ws.onopen = function () {
@@ -81,9 +99,17 @@
                 }
             };
 
-            ws.onclose = function () {
+            ws.onclose = function (event) {
+                if (event && event.code === 1008) {
+                    canReconnect = false;
+                    setStatus('连接被拒绝，请重新登录', 'status-error');
+                    return;
+                }
                 setStatus('已断开，尝试重连中', 'status-offline');
-                window.setTimeout(connect, 3000);
+                if (reconnectTimer) {
+                    window.clearTimeout(reconnectTimer);
+                }
+                reconnectTimer = window.setTimeout(connect, 3000);
             };
 
             ws.onerror = function () {
@@ -102,9 +128,10 @@
             }
 
             var ts = formatTime(date);
+            var avatarUrl = resolveAvatarUrl(msg.avatar);
 
             row.innerHTML =
-                '<div class="chat-avatar"><img src="${pageContext.request.contextPath}/static/img/default-avatar.png" alt="avatar"></div>' +
+                '<div class="chat-avatar"><img src="' + escapeHtml(avatarUrl) + '" alt="avatar" onerror="this.src=\'' + appContextPath + '/static/img/default-avatar.svg\'"></div>' +
                 '<div>' +
                     '<div class="chat-meta"><strong>' + escapeHtml(msg.nickname || '游客') + '</strong><span>' + ts + '</span></div>' +
                     '<div class="chat-bubble">' + escapeHtml(msg.content || '') + '</div>' +
@@ -142,6 +169,22 @@
                 .replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;')
                 .replace(/'/g, '&#039;');
+        }
+
+        function resolveAvatarUrl(avatar) {
+            if (!avatar) {
+                return appContextPath + '/static/img/default-avatar.svg';
+            }
+            if (/^https?:\/\//i.test(avatar)) {
+                return avatar;
+            }
+            if (appContextPath && avatar.indexOf(appContextPath) === 0) {
+                return avatar;
+            }
+            if (avatar.charAt(0) === '/') {
+                return appContextPath + avatar;
+            }
+            return appContextPath + '/' + avatar;
         }
 
         function scrollToBottom() {

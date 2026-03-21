@@ -4,7 +4,7 @@ import java.util.Date;
 
 public class ForumChatMessage {
     private Long id;
-    private Integer roomId;
+    private Long roomId;
     private Long userId;
     private String messageType;
     private String content;
@@ -13,8 +13,8 @@ public class ForumChatMessage {
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
-    public Integer getRoomId() { return roomId; }
-    public void setRoomId(Integer roomId) { this.roomId = roomId; }
+    public Long getRoomId() { return roomId; }
+    public void setRoomId(Long roomId) { this.roomId = roomId; }
     public Long getUserId() { return userId; }
     public void setUserId(Long userId) { this.userId = userId; }
     public String getMessageType() { return messageType; }

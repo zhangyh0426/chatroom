@@ -11,4 +11,6 @@ public interface BoardMapper {
     ForumBoard findBoardById(@Param("id") Integer id);
     int increaseThreadCount(@Param("id") Integer id);
     int increasePostCount(@Param("id") Integer id);
+    int decreaseThreadCount(@Param("id") Integer id, @Param("delta") int delta);
+    int decreasePostCount(@Param("id") Integer id, @Param("delta") int delta);
 }

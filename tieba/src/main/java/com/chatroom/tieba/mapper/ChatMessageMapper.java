@@ -7,5 +7,6 @@ import java.util.List;
 
 public interface ChatMessageMapper {
     int insert(ForumChatMessage msg);
-    List<ChatMessageVO> findRecentGlobalMessages(@Param("limit") int limit);
+    List<ChatMessageVO> findRecentMessagesByRoomId(@Param("roomId") Long roomId, @Param("limit") int limit);
+    List<ChatMessageVO> findRecentMessagesByRoomIdByAvatar(@Param("roomId") Long roomId, @Param("limit") int limit);
 }

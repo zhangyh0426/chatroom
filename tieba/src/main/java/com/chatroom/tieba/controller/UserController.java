@@ -2,7 +2,11 @@ package com.chatroom.tieba.controller;
 
 import com.chatroom.tieba.dto.UserSessionDTO;
 import com.chatroom.tieba.entity.UserProfile;
+import com.chatroom.tieba.service.ForumService;
 import com.chatroom.tieba.service.UserService;
+import com.chatroom.tieba.vo.PageResult;
+import com.chatroom.tieba.vo.PostVO;
+import com.chatroom.tieba.vo.ThreadVO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
@@ -42,8 +46,14 @@ public class UserController {
     @Autowired
     private UserService userService;
 
+    @Autowired
+    private ForumService forumService;
+
     @GetMapping("/user/profile")
-    public String showProfile(HttpSession session, org.springframework.ui.Model model) {
+    public String showProfile(@RequestParam(value = "myThreadPage", defaultValue = "1") int myThreadPage,
+                              @RequestParam(value = "myReplyPage", defaultValue = "1") int myReplyPage,
+                              HttpSession session,
+                              org.springframework.ui.Model model) {
         UserSessionDTO loginUser = requireLogin(session);
         UserProfile profile = userService.getProfileByUserId(loginUser.getId());
         if (profile == null) {
@@ -52,13 +62,17 @@ public class UserController {
             profile.setNickname(loginUser.getNickname());
             profile.setAvatarPath(loginUser.getAvatar());
         }
+        PageResult<ThreadVO> myThreads = forumService.getThreadsByUser(loginUser.getId(), myThreadPage, 5);
+        PageResult<PostVO> myReplies = forumService.getPostsByUser(loginUser.getId(), myReplyPage, 5);
 
         model.addAttribute("profile", profile);
         model.addAttribute("account", loginUser);
+        model.addAttribute("myThreads", myThreads);
+        model.addAttribute("myReplies", myReplies);
         return "user/profile";
     }
 
-    @PostMapping("/api/user/profile/update")
+    @PostMapping("/user/profile/update")
     public String updateProfile(@RequestParam("nickname") String nickname,
                                 @RequestParam(value = "bio", required = false) String bio,
                                 @RequestParam(value = "avatarFile", required = false) MultipartFile avatarFile,

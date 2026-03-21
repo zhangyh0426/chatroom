@@ -8,4 +8,5 @@ import java.util.List;
 public interface ReplyMapper {
     int insert(ForumReply reply);
     List<ReplyVO> findRepliesByPostId(@Param("postId") Long postId);
+    List<ReplyVO> findRepliesByPostIdByAvatar(@Param("postId") Long postId);
 }

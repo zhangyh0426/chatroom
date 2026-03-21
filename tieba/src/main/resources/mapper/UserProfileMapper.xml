@@ -4,22 +4,38 @@
   "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.chatroom.tieba.mapper.UserProfileMapper">
 
-    <insert id="insert">
+    <insert id="insertByAvatarPath">
         INSERT INTO forum_user_profile(user_id, nickname, avatar_path, bio)
         VALUES(#{userId}, #{nickname}, #{avatarPath}, #{bio})
     </insert>
 
-    <select id="findByUserId" resultType="UserProfile">
-        SELECT * FROM forum_user_profile WHERE user_id = #{userId}
+    <insert id="insertByAvatar">
+        INSERT INTO forum_user_profile(user_id, nickname, avatar, bio)
+        VALUES(#{userId}, #{nickname}, #{avatarPath}, #{bio})
+    </insert>
+
+    <select id="findByUserIdByAvatarPath" resultType="UserProfile">
+        SELECT user_id, nickname, avatar_path, bio, last_login_ip, last_login_at
+        FROM forum_user_profile
+        WHERE user_id = #{userId}
     </select>
 
-    <!-- v1.1: 更新个人资料 -->
+    <select id="findByUserIdByAvatar" resultType="UserProfile">
+        SELECT user_id, nickname, avatar AS avatar_path, bio, last_login_ip, last_login_time AS last_login_at
+        FROM forum_user_profile
+        WHERE user_id = #{userId}
+    </select>
+
     <update id="updateProfile">
         UPDATE forum_user_profile SET nickname = #{nickname}, bio = #{bio} WHERE user_id = #{userId}
     </update>
 
-    <update id="updateAvatar">
+    <update id="updateAvatarByAvatarPath">
         UPDATE forum_user_profile SET avatar_path = #{avatarPath} WHERE user_id = #{userId}
+    </update>
+
+    <update id="updateAvatarByAvatar">
+        UPDATE forum_user_profile SET avatar = #{avatarPath} WHERE user_id = #{userId}
     </update>
 
 </mapper>

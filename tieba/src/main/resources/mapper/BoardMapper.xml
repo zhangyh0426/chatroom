@@ -22,4 +22,16 @@
         UPDATE forum_board SET post_count = post_count + 1 WHERE id = #{id}
     </update>
 
+    <update id="decreaseThreadCount">
+        UPDATE forum_board
+        SET thread_count = GREATEST(thread_count - #{delta}, 0)
+        WHERE id = #{id}
+    </update>
+
+    <update id="decreasePostCount">
+        UPDATE forum_board
+        SET post_count = GREATEST(post_count - #{delta}, 0)
+        WHERE id = #{id}
+    </update>
+
 </mapper>

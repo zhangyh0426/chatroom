@@ -3,15 +3,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <jsp:include page="/WEB-INF/jsp/common/head.jsp" />
     <title>首页 - 本地贴吧</title>
-    <link rel="stylesheet" href="${pageContext.request.contextPath}/static/css/apple-ui.css">
-    <!-- Phase 1 & 2: GSAP Animations & Lenis Smooth Scroll Core -->
-    <script src="https://cdn.jsdelivr.net/npm/@studio-freight/lenis@1.0.29/dist/lenis.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
-    <script defer src="${pageContext.request.contextPath}/static/js/apple-ui.js"></script>
 </head>
 <body class="page-home">
     <jsp:include page="common/header.jsp" />
@@ -21,9 +14,9 @@
             <div class="hero-copy">
                 <p class="hero-kicker">LOCAL COMMUNITY HUB</p>
                 <h1>把兴趣变成持续发声的舞台</h1>
-                <p>用更轻盈、更沉浸的体验连接话题与人。浏览分区、进入吧内讨论，或直接加入全站公共聊天室，实时交流。</p>
+                <p>用更轻盈、更沉浸的体验连接话题与人。浏览分区、进入吧内讨论，或直接进入聊天室，实时交流。</p>
                 <div class="hero-actions">
-                    <a href="${pageContext.request.contextPath}/chat/global" class="btn">进入公共聊天室</a>
+                    <a href="${pageContext.request.contextPath}/chat/global" class="btn">进入聊天室</a>
                     <a href="#board-zone" class="btn btn-ghost">浏览兴趣分区</a>
                 </div>
             </div>
@@ -52,10 +45,10 @@
 
         <section class="panel chat-gateway interactive-card" data-reveal>
             <div>
-                <h3>GLOBAL CHAT 全站大厅</h3>
-                <p>这里是全站实时对话入口。发帖之外，所有人都可以在这里快速互动、同步讨论热点。</p>
+                <h3>聊天室与兴趣群组</h3>
+                <p>进入后可选择全站大厅或兴趣群组。加入群组后即可实时交流，消息按群组隔离。</p>
             </div>
-            <a href="${pageContext.request.contextPath}/chat/global" class="btn btn-accent">立即连线</a>
+            <a href="${pageContext.request.contextPath}/chat/global" class="btn btn-accent">进入聊天室</a>
         </section>
 
         <section id="board-zone" data-reveal>

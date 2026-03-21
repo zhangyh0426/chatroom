@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Space+Grotesk:wght@500;700&display=swap');
-
 :root {
     --bg: #f3f5f8;
     --bg-soft: #e9edf4;
@@ -485,6 +483,12 @@ main {
     min-height: 172px;
 }
 
+.board-card:focus-visible {
+    outline: none;
+    border-color: rgba(0, 113, 227, 0.3);
+    box-shadow: var(--shadow-focus), var(--shadow-md);
+}
+
 .board-icon {
     width: 44px;
     height: 44px;
@@ -520,6 +524,29 @@ main {
 .board-meta strong {
     color: #1d2e53;
     font-family: "Space Grotesk", "Manrope", sans-serif;
+}
+
+.board-cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 11px 20px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.78);
+    border: 1px solid rgba(8, 18, 35, 0.12);
+    color: #2d3444;
+    font-family: "Space Grotesk", "Manrope", sans-serif;
+    font-size: 0.84rem;
+    font-weight: 600;
+    box-shadow: none;
+}
+
+.board-cta.is-joined {
+    color: #fff;
+    background: linear-gradient(140deg, #0ca58e, #0b8d78);
+    border-color: rgba(11, 141, 120, 0.2);
+    box-shadow: 0 8px 20px rgba(11, 141, 120, 0.24);
 }
 
 .crumb-row {
@@ -861,6 +888,16 @@ textarea.form-control {
     color: #076949;
 }
 
+.status-pill.status-connecting {
+    background: rgba(0, 113, 227, 0.14);
+    color: #0e4f96;
+}
+
+.status-pill.status-reconnecting {
+    background: rgba(207, 95, 0, 0.16);
+    color: #93511a;
+}
+
 .status-pill.status-offline,
 .status-pill.status-error {
     background: rgba(194, 59, 59, 0.16);
@@ -902,6 +939,22 @@ textarea.form-control {
 .chat-row.self .chat-bubble {
     background: linear-gradient(140deg, #2f8fee, #0766cb);
     color: #fff;
+}
+
+.chat-row.system-message {
+    justify-content: center;
+    margin: 10px 0;
+}
+
+.system-bubble {
+    border-radius: 999px;
+    padding: 5px 12px;
+    max-width: min(86%, 74ch);
+    text-align: center;
+    font-size: 0.76rem;
+    color: #4f5c72;
+    background: rgba(8, 18, 35, 0.08);
+    border: 1px solid rgba(8, 18, 35, 0.1);
 }
 
 .chat-avatar {
@@ -950,6 +1003,19 @@ textarea.form-control {
 .chat-compose .form-control {
     margin: 0;
     min-height: auto;
+}
+
+.chat-compose .form-control:disabled {
+    background: rgba(8, 18, 35, 0.05);
+    color: #6d7686;
+}
+
+.chat-compose .btn:disabled {
+    cursor: not-allowed;
+    filter: grayscale(0.25);
+    opacity: 0.72;
+    transform: none;
+    box-shadow: none;
 }
 
 .auth-page {
@@ -1061,6 +1127,12 @@ textarea.form-control {
     background: rgba(18, 148, 105, 0.14);
     color: #076949;
     border: 1px solid rgba(18, 148, 105, 0.28);
+}
+
+.alert-info {
+    background: rgba(0, 113, 227, 0.1);
+    color: #0e4f96;
+    border: 1px solid rgba(0, 113, 227, 0.18);
 }
 
 .auth-links {
@@ -1276,23 +1348,23 @@ textarea.form-control {
         height: 8px;
         background-color: var(--accent-strong);
         border-radius: 50%;
-        transition: opacity 0.2s ease;
+        transition: opacity 0.16s ease;
     }
     
     .magic-cursor-follower {
-        width: 44px;
-        height: 44px;
-        border: 1px solid rgba(0, 113, 227, 0.45);
+        width: 36px;
+        height: 36px;
+        border: 1px solid rgba(0, 113, 227, 0.34);
         border-radius: 50%;
-        transition: width 0.4s cubic-bezier(0.2, 1, 0.2, 1), height 0.4s cubic-bezier(0.2, 1, 0.2, 1), border 0.3s ease, background 0.3s ease;
+        transition: width 0.24s ease, height 0.24s ease, border 0.2s ease, background 0.2s ease;
     }
     
     .magic-cursor-follower.is-active {
-        width: 76px;
-        height: 76px;
-        background: rgba(0, 113, 227, 0.08);
-        border-color: rgba(0, 113, 227, 0.1);
-        backdrop-filter: blur(2px);
+        width: 54px;
+        height: 54px;
+        background: rgba(0, 113, 227, 0.05);
+        border-color: rgba(0, 113, 227, 0.12);
+        backdrop-filter: blur(1px);
     }
     
     .magic-cursor-follower.is-hidden,

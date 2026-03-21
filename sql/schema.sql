@@ -124,33 +124,99 @@ CREATE TABLE `forum_moderation_log` (
 -- ====================
 -- 4. 聊天室域 (Chat Room Domain)
 -- ====================
-CREATE TABLE `forum_chat_room` (
-  `id` INT AUTO_INCREMENT PRIMARY KEY,
-  `room_code` VARCHAR(50) NOT NULL UNIQUE,
-  `name` VARCHAR(100) NOT NULL,
-  `status` TINYINT DEFAULT 1
+CREATE TABLE `forum_interest_partition` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `partition_code` varchar(30) NOT NULL,
+  `partition_name` varchar(50) NOT NULL,
+  `sort_order` int NOT NULL DEFAULT 0,
+  `status` varchar(20) NOT NULL DEFAULT 'ENABLED',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_forum_interest_partition_code` (`partition_code`),
+  UNIQUE KEY `uk_forum_interest_partition_name` (`partition_name`),
+  KEY `idx_forum_interest_partition_status_sort` (`status`, `sort_order`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Initialize Global Room
-INSERT INTO `forum_chat_room` (`room_code`, `name`) VALUES ('GLOBAL', '全站公共聊天室') ON DUPLICATE KEY UPDATE `name`=VALUES(`name`);
+CREATE TABLE `forum_chat_room` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `partition_id` bigint unsigned NOT NULL,
+  `room_code` varchar(30) NOT NULL,
+  `room_name` varchar(100) NOT NULL,
+  `room_type` varchar(20) NOT NULL DEFAULT 'PUBLIC',
+  `status` varchar(20) NOT NULL DEFAULT 'ENABLED',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_forum_chat_room_room_code` (`room_code`),
+  KEY `idx_forum_chat_room_partition_id` (`partition_id`),
+  CONSTRAINT `fk_forum_chat_room_partition_id` FOREIGN KEY (`partition_id`) REFERENCES `forum_interest_partition` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO `forum_interest_partition` (`partition_code`, `partition_name`, `sort_order`, `status`) VALUES
+('SQUARE', '广场大厅', 10, 'ENABLED'),
+('TECH_FUN', '技术与娱乐', 20, 'ENABLED'),
+('CAMPUS_LIFE', '校园生活', 30, 'ENABLED')
+ON DUPLICATE KEY UPDATE
+`partition_name`=VALUES(`partition_name`),
+`sort_order`=VALUES(`sort_order`),
+`status`=VALUES(`status`);
+
+INSERT INTO `forum_chat_room` (`partition_id`, `room_code`, `room_name`, `room_type`, `status`) VALUES
+((SELECT id FROM `forum_interest_partition` WHERE `partition_code` = 'SQUARE'), 'GLOBAL', '全站大厅', 'PUBLIC', 'ENABLED'),
+((SELECT id FROM `forum_interest_partition` WHERE `partition_code` = 'TECH_FUN'), 'TECH', '技术交流', 'PUBLIC', 'ENABLED'),
+((SELECT id FROM `forum_interest_partition` WHERE `partition_code` = 'TECH_FUN'), 'GAME', '游戏讨论', 'PUBLIC', 'ENABLED'),
+((SELECT id FROM `forum_interest_partition` WHERE `partition_code` = 'TECH_FUN'), 'MOVIE', '影视漫谈', 'PUBLIC', 'ENABLED'),
+((SELECT id FROM `forum_interest_partition` WHERE `partition_code` = 'CAMPUS_LIFE'), 'CAMPUS', '校园生活', 'PUBLIC', 'ENABLED')
+ON DUPLICATE KEY UPDATE
+`partition_id`=VALUES(`partition_id`),
+`room_name`=VALUES(`room_name`),
+`room_type`=VALUES(`room_type`),
+`status`=VALUES(`status`);
 
 CREATE TABLE `forum_chat_message` (
-  `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
-  `room_id` INT NOT NULL,
-  `user_id` BIGINT NOT NULL,
-  `message_type` VARCHAR(20) DEFAULT 'TEXT' COMMENT 'TEXT, IMAGE, SYSTEM',
-  `content` TEXT NOT NULL,
-  `status` TINYINT DEFAULT 1 COMMENT '1:正常, 0:撤回/删除',
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `room_id` bigint unsigned NOT NULL,
+  `user_id` bigint unsigned NOT NULL,
+  `message_type` varchar(20) NOT NULL DEFAULT 'TEXT',
+  `content` text NOT NULL,
+  `status` tinyint(1) NOT NULL DEFAULT 1 COMMENT '1:可见,0:隐藏',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_forum_chat_message_room_id_created_at` (`room_id`, `created_at`),
+  KEY `idx_forum_chat_message_user_id` (`user_id`),
+  CONSTRAINT `fk_forum_chat_message_room_id` FOREIGN KEY (`room_id`) REFERENCES `forum_chat_room` (`id`),
+  CONSTRAINT `fk_forum_chat_message_user_id` FOREIGN KEY (`user_id`) REFERENCES `forum_user_account` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `forum_chat_member` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `room_id` bigint unsigned NOT NULL,
+  `user_id` bigint unsigned NOT NULL,
+  `joined_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_forum_chat_member_room_user` (`room_id`, `user_id`),
+  KEY `idx_forum_chat_member_user_id` (`user_id`),
+  CONSTRAINT `fk_forum_chat_member_room_id` FOREIGN KEY (`room_id`) REFERENCES `forum_chat_room` (`id`),
+  CONSTRAINT `fk_forum_chat_member_user_id` FOREIGN KEY (`user_id`) REFERENCES `forum_user_account` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE `forum_chat_ban` (
-  `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
-  `room_id` INT NOT NULL,
-  `user_id` BIGINT NOT NULL,
-  `operator_id` BIGINT NOT NULL,
-  `ban_until` DATETIME DEFAULT NULL,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `room_id` bigint unsigned NOT NULL,
+  `user_id` bigint unsigned NOT NULL,
+  `reason` varchar(255) NOT NULL,
+  `start_at` datetime NOT NULL,
+  `end_at` datetime DEFAULT NULL,
+  `operator_id` bigint unsigned DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_forum_chat_ban_room_id` (`room_id`),
+  KEY `idx_forum_chat_ban_user_id` (`user_id`),
+  KEY `idx_forum_chat_ban_operator_id` (`operator_id`),
+  CONSTRAINT `fk_forum_chat_ban_room_id` FOREIGN KEY (`room_id`) REFERENCES `forum_chat_room` (`id`),
+  CONSTRAINT `fk_forum_chat_ban_user_id` FOREIGN KEY (`user_id`) REFERENCES `forum_user_account` (`id`),
+  CONSTRAINT `fk_forum_chat_ban_operator_id` FOREIGN KEY (`operator_id`) REFERENCES `forum_user_account` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Role Init

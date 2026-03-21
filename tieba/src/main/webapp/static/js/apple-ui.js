@@ -72,13 +72,13 @@
         if (typeof gsap !== 'undefined') {
             gsap.ticker.add(function() {
                 // Spring damping physics for follower
-                followerX += (mouseX - followerX) * 0.18;
-                followerY += (mouseY - followerY) * 0.18;
+                followerX += (mouseX - followerX) * 0.12;
+                followerY += (mouseY - followerY) * 0.12;
                 gsap.set(follower, { x: followerX, y: followerY });
                 
                 if (!isHovering) {
-                    cursorX += (mouseX - cursorX) * 0.8;
-                    cursorY += (mouseY - cursorY) * 0.8;
+                    cursorX += (mouseX - cursorX) * 0.62;
+                    cursorY += (mouseY - cursorY) * 0.62;
                     gsap.set(cursor, { x: cursorX, y: cursorY });
                 }
             });
@@ -94,7 +94,7 @@
                 
                 // Button organic bloat
                 if (typeof gsap !== 'undefined' && el.classList.contains('btn')) {
-                    gsap.to(el, { duration: 0.4, scale: 1.04, ease: "back.out(1.5)" });
+                    gsap.to(el, { duration: 0.28, scale: 1.02, ease: "power2.out" });
                 }
             });
             
@@ -120,14 +120,14 @@
                     var dy = e.clientY - cy;
                     
                     // Physically pull the element towards mouse
-                    gsap.to(el, { duration: 0.4, x: dx * 0.15, y: dy * 0.15, ease: "power2.out" });
+                    gsap.to(el, { duration: 0.24, x: dx * 0.06, y: dy * 0.06, ease: "power2.out" });
                     
                     // Snap the follower rigidly to the center of the pulled object
-                    mouseX = cx + dx * 0.1;
-                    mouseY = cy + dy * 0.1;
+                    mouseX = cx + dx * 0.04;
+                    mouseY = cy + dy * 0.04;
                     
                     // Stick the dot exactly to the button center
-                    gsap.set(cursor, { x: cx + dx * 0.05, y: cy + dy * 0.05 });
+                    gsap.set(cursor, { x: cx + dx * 0.02, y: cy + dy * 0.02 });
                 });
             }
         });
@@ -163,26 +163,26 @@
                 if (typeof gsap !== 'undefined') {
                     // Ultra-smooth 3D physical rotation
                     gsap.to(card, {
-                        duration: 0.5,
-                        rotateX: -dy * 8,
-                        rotateY: dx * 8,
-                        y: -5,
-                        boxShadow: '0 30px 60px rgba(12, 21, 38, 0.18)',
+                        duration: 0.32,
+                        rotateX: -dy * 4,
+                        rotateY: dx * 4,
+                        y: -2,
+                        boxShadow: '0 20px 40px rgba(12, 21, 38, 0.14)',
                         ease: "power3.out"
                     });
                     
                     // Internal layer Parallax (e.g. icon floating off board surface)
                     var icon = card.querySelector('.board-icon');
-                    if (icon) gsap.to(icon, { duration: 0.5, x: dx * 10, y: dy * 10, ease: "power3.out" });
+                    if (icon) gsap.to(icon, { duration: 0.32, x: dx * 5, y: dy * 5, ease: "power3.out" });
                     
                     // Light tracking mapping
                     gsap.to(glare, {
-                        duration: 0.5,
-                        opacity: 1,
-                        background: 'radial-gradient(circle at ' + x + 'px ' + y + 'px, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 60%)'
+                        duration: 0.32,
+                        opacity: 0.68,
+                        background: 'radial-gradient(circle at ' + x + 'px ' + y + 'px, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0) 60%)'
                     });
                 } else {
-                    card.style.transform = 'perspective(1000px) rotateX(' + (-dy * 7) + 'deg) rotateY(' + (dx * 7) + 'deg) translateY(-2px)';
+                    card.style.transform = 'perspective(1000px) rotateX(' + (-dy * 4) + 'deg) rotateY(' + (dx * 4) + 'deg) translateY(-2px)';
                 }
             });
 
@@ -190,13 +190,13 @@
                 if (typeof gsap !== 'undefined') {
                     // Damped elastic return to 0 state
                     gsap.to(card, {
-                        duration: 0.8, rotateX: 0, rotateY: 0, y: 0,
+                        duration: 0.42, rotateX: 0, rotateY: 0, y: 0,
                         boxShadow: 'var(--shadow-sm)',
-                        ease: "elastic.out(1, 0.6)"
+                        ease: "power2.out"
                     });
                     var icon = card.querySelector('.board-icon');
-                    if (icon) gsap.to(icon, { duration: 0.8, x: 0, y: 0, ease: "elastic.out(1, 0.6)" });
-                    gsap.to(glare, { duration: 0.5, opacity: 0 });
+                    if (icon) gsap.to(icon, { duration: 0.42, x: 0, y: 0, ease: "power2.out" });
+                    gsap.to(glare, { duration: 0.3, opacity: 0 });
                 } else {
                     card.style.transform = '';
                 }

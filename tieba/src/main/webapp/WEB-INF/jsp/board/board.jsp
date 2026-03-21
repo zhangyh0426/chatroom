@@ -4,11 +4,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <jsp:include page="/WEB-INF/jsp/common/head.jsp" />
     <title>${board.name}吧 - 本地贴吧</title>
-    <link rel="stylesheet" href="${pageContext.request.contextPath}/static/css/apple-ui.css">
-    <script defer src="${pageContext.request.contextPath}/static/js/apple-ui.js"></script>
 </head>
 <body class="page-board">
     <jsp:include page="../common/header.jsp" />
@@ -38,6 +35,14 @@
                     <a href="#composer" class="btn btn-sm btn-ghost">发新帖</a>
                 </c:if>
             </header>
+            <form action="${pageContext.request.contextPath}/board/${board.id}" method="get" class="form-group" style="display:flex;gap:10px;align-items:center;margin-bottom:16px;">
+                <input type="hidden" name="size" value="${pageResult.pageSize}">
+                <input type="text" name="keyword" class="form-control" placeholder="搜索标题或内容" value="${keyword}">
+                <button type="submit" class="btn btn-sm">搜索</button>
+                <c:if test="${not empty keyword}">
+                    <a href="${pageContext.request.contextPath}/board/${board.id}" class="btn btn-sm btn-ghost">清除</a>
+                </c:if>
+            </form>
 
             <c:choose>
                 <c:when test="${empty threads}">
@@ -70,6 +75,41 @@
                                 </p>
                             </div>
                         </article>
+                    </c:forEach>
+                </c:otherwise>
+            </c:choose>
+            <c:if test="${not empty pageResult and pageResult.totalPages > 1}">
+                <div class="thread-meta" style="margin-top:14px;display:flex;justify-content:space-between;align-items:center;">
+                    <span>第 ${pageResult.pageNum} / ${pageResult.totalPages} 页，共 ${pageResult.totalCount} 条</span>
+                    <span style="display:flex;gap:8px;">
+                        <c:if test="${pageResult.hasPrev()}">
+                            <a class="btn btn-sm btn-ghost" href="${pageContext.request.contextPath}/board/${board.id}?page=${pageResult.pageNum - 1}&size=${pageResult.pageSize}&keyword=${keyword}">上一页</a>
+                        </c:if>
+                        <c:if test="${pageResult.hasNext()}">
+                            <a class="btn btn-sm btn-ghost" href="${pageContext.request.contextPath}/board/${board.id}?page=${pageResult.pageNum + 1}&size=${pageResult.pageSize}&keyword=${keyword}">下一页</a>
+                        </c:if>
+                    </span>
+                </div>
+            </c:if>
+        </section>
+
+        <section class="panel" data-reveal>
+            <header class="section-head">
+                <h2>热门榜</h2>
+                <span class="pill">Top 10</span>
+            </header>
+            <c:choose>
+                <c:when test="${empty hotThreads}">
+                    <div class="empty-state">暂无热门帖子</div>
+                </c:when>
+                <c:otherwise>
+                    <c:forEach items="${hotThreads}" var="hot" varStatus="st">
+                        <div class="thread-meta" style="display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid rgba(148,163,184,.2);">
+                            <a href="${pageContext.request.contextPath}/thread/${hot.id}">
+                                #${st.index + 1} <c:out value="${hot.title}" />
+                            </a>
+                            <span>热度 ${hot.viewCount + hot.replyCount * 10}</span>
+                        </div>
                     </c:forEach>
                 </c:otherwise>
             </c:choose>

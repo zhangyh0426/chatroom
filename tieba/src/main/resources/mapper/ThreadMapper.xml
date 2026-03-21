@@ -7,15 +7,38 @@
         VALUES(#{boardId}, #{userId}, #{title}, #{content}, 0, 0, 0, 0, 1, NOW(), NOW())
     </insert>
 
+    <select id="findRawById" resultType="com.chatroom.tieba.entity.ForumThread">
+        SELECT * FROM forum_thread WHERE id = #{id}
+    </select>
+
     <select id="findById" resultType="com.chatroom.tieba.vo.ThreadVO">
-        SELECT t.*, u.nickname as authorName, u.avatar_path as authorAvatar
+        SELECT t.*, u.nickname as authorName,
+               u.avatar_path as avatar_path, u.avatar_path as authorAvatar
+        FROM forum_thread t
+        LEFT JOIN forum_user_profile u ON t.user_id = u.user_id
+        WHERE t.id = #{id} AND t.status = 1
+    </select>
+
+    <select id="findByIdByAvatar" resultType="com.chatroom.tieba.vo.ThreadVO">
+        SELECT t.*, u.nickname as authorName,
+               u.avatar as avatar_path, u.avatar as authorAvatar
         FROM forum_thread t
         LEFT JOIN forum_user_profile u ON t.user_id = u.user_id
         WHERE t.id = #{id} AND t.status = 1
     </select>
 
     <select id="findThreadsByBoardId" resultType="com.chatroom.tieba.vo.ThreadVO">
-        SELECT t.*, u.nickname as authorName, u.avatar_path as authorAvatar
+        SELECT t.*, u.nickname as authorName,
+               u.avatar_path as avatar_path, u.avatar_path as authorAvatar
+        FROM forum_thread t
+        LEFT JOIN forum_user_profile u ON t.user_id = u.user_id
+        WHERE t.board_id = #{boardId} AND t.status = 1
+        ORDER BY t.is_top DESC, t.last_reply_time DESC
+    </select>
+
+    <select id="findThreadsByBoardIdByAvatar" resultType="com.chatroom.tieba.vo.ThreadVO">
+        SELECT t.*, u.nickname as authorName,
+               u.avatar as avatar_path, u.avatar as authorAvatar
         FROM forum_thread t
         LEFT JOIN forum_user_profile u ON t.user_id = u.user_id
         WHERE t.board_id = #{boardId} AND t.status = 1
@@ -23,7 +46,13 @@
     </select>
 
     <update id="increaseViewCount">
-        UPDATE forum_thread SET view_count = view_count + 1 WHERE id = #{id}
+        UPDATE forum_thread SET view_count = view_count + 1 WHERE id = #{id} AND status = 1
+    </update>
+
+    <update id="softDeleteByIdAndUserId">
+        UPDATE forum_thread
+        SET status = 0
+        WHERE id = #{id} AND user_id = #{userId} AND status = 1
     </update>
 
     <update id="increaseReplyCount">
@@ -36,16 +65,59 @@
 
     <!-- v1.1: 分页查询 -->
     <select id="findThreadsByBoardIdPaged" resultType="com.chatroom.tieba.vo.ThreadVO">
-        SELECT t.*, u.nickname as authorName, u.avatar_path as authorAvatar
+        SELECT t.*, u.nickname as authorName,
+               u.avatar_path as avatar_path, u.avatar_path as authorAvatar
         FROM forum_thread t
         LEFT JOIN forum_user_profile u ON t.user_id = u.user_id
-        WHERE t.board_id = #{boardId} AND t.status = 'VISIBLE'
+        WHERE t.board_id = #{boardId} AND t.status = 1
+        ORDER BY t.is_top DESC, t.last_reply_time DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="findThreadsByBoardIdPagedByAvatar" resultType="com.chatroom.tieba.vo.ThreadVO">
+        SELECT t.*, u.nickname as authorName,
+               u.avatar as avatar_path, u.avatar as authorAvatar
+        FROM forum_thread t
+        LEFT JOIN forum_user_profile u ON t.user_id = u.user_id
+        WHERE t.board_id = #{boardId} AND t.status = 1
+        ORDER BY t.is_top DESC, t.last_reply_time DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="findThreadsByBoardIdPagedWithKeyword" resultType="com.chatroom.tieba.vo.ThreadVO">
+        SELECT t.*, u.nickname as authorName,
+               u.avatar_path as avatar_path, u.avatar_path as authorAvatar
+        FROM forum_thread t
+        LEFT JOIN forum_user_profile u ON t.user_id = u.user_id
+        WHERE t.board_id = #{boardId}
+          AND t.status = 1
+          AND (t.title LIKE CONCAT('%', #{keyword}, '%') OR t.content LIKE CONCAT('%', #{keyword}, '%'))
+        ORDER BY t.is_top DESC, t.last_reply_time DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="findThreadsByBoardIdPagedWithKeywordByAvatar" resultType="com.chatroom.tieba.vo.ThreadVO">
+        SELECT t.*, u.nickname as authorName,
+               u.avatar as avatar_path, u.avatar as authorAvatar
+        FROM forum_thread t
+        LEFT JOIN forum_user_profile u ON t.user_id = u.user_id
+        WHERE t.board_id = #{boardId}
+          AND t.status = 1
+          AND (t.title LIKE CONCAT('%', #{keyword}, '%') OR t.content LIKE CONCAT('%', #{keyword}, '%'))
         ORDER BY t.is_top DESC, t.last_reply_time DESC
         LIMIT #{offset}, #{size}
     </select>
 
     <select id="countThreadsByBoardId" resultType="int">
-        SELECT COUNT(*) FROM forum_thread WHERE board_id = #{boardId} AND status = 'VISIBLE'
+        SELECT COUNT(*) FROM forum_thread WHERE board_id = #{boardId} AND status = 1
+    </select>
+
+    <select id="countThreadsByBoardIdWithKeyword" resultType="int">
+        SELECT COUNT(*)
+        FROM forum_thread
+        WHERE board_id = #{boardId}
+          AND status = 1
+          AND (title LIKE CONCAT('%', #{keyword}, '%') OR content LIKE CONCAT('%', #{keyword}, '%'))
     </select>
 
     <!-- v1.1: 点赞 -->
@@ -58,44 +130,85 @@
     </update>
 
     <!-- v1.1: 搜索 -->
-    <select id="searchByTitle" resultType="com.chatroom.tieba.vo.ThreadVO">
-        SELECT t.*, u.nickname as authorName, u.avatar_path as authorAvatar, b.name as boardName
+    <select id="searchByKeyword" resultType="com.chatroom.tieba.vo.ThreadVO">
+        SELECT t.*, u.nickname as authorName,
+               u.avatar_path as avatar_path, u.avatar_path as authorAvatar, b.name as boardName
         FROM forum_thread t
         LEFT JOIN forum_user_profile u ON t.user_id = u.user_id
         LEFT JOIN forum_board b ON t.board_id = b.id
-        WHERE t.status = 'VISIBLE' AND t.title LIKE CONCAT('%', #{keyword}, '%')
+        WHERE t.status = 1
+          AND (t.title LIKE CONCAT('%', #{keyword}, '%') OR t.content LIKE CONCAT('%', #{keyword}, '%'))
         ORDER BY t.created_at DESC
         LIMIT #{offset}, #{size}
     </select>
 
-    <select id="countSearchByTitle" resultType="int">
-        SELECT COUNT(*) FROM forum_thread WHERE status = 'VISIBLE' AND title LIKE CONCAT('%', #{keyword}, '%')
+    <select id="searchByKeywordByAvatar" resultType="com.chatroom.tieba.vo.ThreadVO">
+        SELECT t.*, u.nickname as authorName,
+               u.avatar as avatar_path, u.avatar as authorAvatar, b.name as boardName
+        FROM forum_thread t
+        LEFT JOIN forum_user_profile u ON t.user_id = u.user_id
+        LEFT JOIN forum_board b ON t.board_id = b.id
+        WHERE t.status = 1
+          AND (t.title LIKE CONCAT('%', #{keyword}, '%') OR t.content LIKE CONCAT('%', #{keyword}, '%'))
+        ORDER BY t.created_at DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="countSearchByKeyword" resultType="int">
+        SELECT COUNT(*)
+        FROM forum_thread
+        WHERE status = 1
+          AND (title LIKE CONCAT('%', #{keyword}, '%') OR content LIKE CONCAT('%', #{keyword}, '%'))
     </select>
 
     <!-- v1.1: 热门榜单 -->
     <select id="findHotThreads" resultType="com.chatroom.tieba.vo.ThreadVO">
-        SELECT t.*, u.nickname as authorName, b.name as boardName
+        SELECT t.*, u.nickname as authorName,
+               u.avatar_path as avatar_path, u.avatar_path as authorAvatar, b.name as boardName
         FROM forum_thread t
         LEFT JOIN forum_user_profile u ON t.user_id = u.user_id
         LEFT JOIN forum_board b ON t.board_id = b.id
-        WHERE t.status = 'VISIBLE'
+        WHERE t.status = 1
+        ORDER BY (t.view_count + t.reply_count * 10) DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="findHotThreadsByAvatar" resultType="com.chatroom.tieba.vo.ThreadVO">
+        SELECT t.*, u.nickname as authorName,
+               u.avatar as avatar_path, u.avatar as authorAvatar, b.name as boardName
+        FROM forum_thread t
+        LEFT JOIN forum_user_profile u ON t.user_id = u.user_id
+        LEFT JOIN forum_board b ON t.board_id = b.id
+        WHERE t.status = 1
         ORDER BY (t.view_count + t.reply_count * 10) DESC
         LIMIT #{limit}
     </select>
 
     <!-- v1.1: 我的足迹 - 我发布的帖子 -->
     <select id="findThreadsByUserId" resultType="com.chatroom.tieba.vo.ThreadVO">
-        SELECT t.*, u.nickname as authorName, b.name as boardName
+        SELECT t.*, u.nickname as authorName,
+               u.avatar_path as avatar_path, u.avatar_path as authorAvatar, b.name as boardName
         FROM forum_thread t
         LEFT JOIN forum_user_profile u ON t.user_id = u.user_id
         LEFT JOIN forum_board b ON t.board_id = b.id
-        WHERE t.user_id = #{userId} AND t.status = 'VISIBLE'
+        WHERE t.user_id = #{userId} AND t.status = 1
+        ORDER BY t.created_at DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="findThreadsByUserIdByAvatar" resultType="com.chatroom.tieba.vo.ThreadVO">
+        SELECT t.*, u.nickname as authorName,
+               u.avatar as avatar_path, u.avatar as authorAvatar, b.name as boardName
+        FROM forum_thread t
+        LEFT JOIN forum_user_profile u ON t.user_id = u.user_id
+        LEFT JOIN forum_board b ON t.board_id = b.id
+        WHERE t.user_id = #{userId} AND t.status = 1
         ORDER BY t.created_at DESC
         LIMIT #{offset}, #{size}
     </select>
 
     <select id="countThreadsByUserId" resultType="int">
-        SELECT COUNT(*) FROM forum_thread WHERE user_id = #{userId} AND status = 'VISIBLE'
+        SELECT COUNT(*) FROM forum_thread WHERE user_id = #{userId} AND status = 1
     </select>
 
 </mapper>

@@ -3,11 +3,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <jsp:include page="/WEB-INF/jsp/common/head.jsp" />
     <title>用户注册 - 本地吧</title>
-    <link rel="stylesheet" href="${pageContext.request.contextPath}/static/css/apple-ui.css">
-    <script defer src="${pageContext.request.contextPath}/static/js/apple-ui.js"></script>
 </head>
 <body class="auth-page">
     <main class="auth-shell">
@@ -20,10 +17,10 @@
         <section class="auth-card interactive-card" data-reveal>
             <p class="auth-kicker">CREATE ACCOUNT</p>
             <h1 class="auth-title">注册并加入讨论</h1>
-            <p class="auth-subtitle">创建账号后可发帖、回帖并加入全站公共聊天室。</p>
+            <p class="auth-subtitle">创建账号后可发帖、回帖，并进入聊天室与兴趣群组。</p>
 
             <c:if test="${not empty error}">
-                <div class="alert alert-error">${error}</div>
+                <div class="alert alert-error"><c:out value="${error}" /></div>
             </c:if>
 
             <form action="${pageContext.request.contextPath}/auth/register" method="post">

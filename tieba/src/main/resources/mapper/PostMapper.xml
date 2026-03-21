@@ -8,7 +8,17 @@
     </insert>
 
     <select id="findPostsByThreadId" resultType="com.chatroom.tieba.vo.PostVO">
-        SELECT p.*, u.nickname as authorName, u.avatar as authorAvatar
+        SELECT p.*, u.nickname as authorName,
+               u.avatar_path as avatar_path, u.avatar_path as authorAvatar
+        FROM forum_post p
+        LEFT JOIN forum_user_profile u ON p.user_id = u.user_id
+        WHERE p.thread_id = #{threadId} AND p.status = 1
+        ORDER BY p.floor_no ASC
+    </select>
+
+    <select id="findPostsByThreadIdByAvatar" resultType="com.chatroom.tieba.vo.PostVO">
+        SELECT p.*, u.nickname as authorName,
+               u.avatar as avatar_path, u.avatar as authorAvatar
         FROM forum_post p
         LEFT JOIN forum_user_profile u ON p.user_id = u.user_id
         WHERE p.thread_id = #{threadId} AND p.status = 1
@@ -21,16 +31,27 @@
 
     <!-- v1.1: 分页查询楼层 -->
     <select id="findPostsByThreadIdPaged" resultType="com.chatroom.tieba.vo.PostVO">
-        SELECT p.*, u.nickname as authorName, u.avatar_path as authorAvatar
+        SELECT p.*, u.nickname as authorName,
+               u.avatar_path as avatar_path, u.avatar_path as authorAvatar
         FROM forum_post p
         LEFT JOIN forum_user_profile u ON p.user_id = u.user_id
-        WHERE p.thread_id = #{threadId} AND p.status = 'VISIBLE'
+        WHERE p.thread_id = #{threadId} AND p.status = 1
+        ORDER BY p.floor_no ASC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="findPostsByThreadIdPagedByAvatar" resultType="com.chatroom.tieba.vo.PostVO">
+        SELECT p.*, u.nickname as authorName,
+               u.avatar as avatar_path, u.avatar as authorAvatar
+        FROM forum_post p
+        LEFT JOIN forum_user_profile u ON p.user_id = u.user_id
+        WHERE p.thread_id = #{threadId} AND p.status = 1
         ORDER BY p.floor_no ASC
         LIMIT #{offset}, #{size}
     </select>
 
     <select id="countPostsByThreadId" resultType="int">
-        SELECT COUNT(*) FROM forum_post WHERE thread_id = #{threadId} AND status = 'VISIBLE'
+        SELECT COUNT(*) FROM forum_post WHERE thread_id = #{threadId} AND status = 1
     </select>
 
     <!-- v1.1: 点赞 -->
@@ -44,18 +65,34 @@
 
     <!-- v1.1: 我的足迹 - 我回复的帖子 (多表联查) -->
     <select id="findPostsByUserId" resultType="com.chatroom.tieba.vo.PostVO">
-        SELECT p.*, u.nickname as authorName, u.avatar_path as authorAvatar,
+        SELECT p.*, u.nickname as authorName,
+               u.avatar_path as avatar_path, u.avatar_path as authorAvatar,
                t.title as threadTitle, t.id as threadId
         FROM forum_post p
         LEFT JOIN forum_user_profile u ON p.user_id = u.user_id
         LEFT JOIN forum_thread t ON p.thread_id = t.id
-        WHERE p.user_id = #{userId} AND p.status = 'VISIBLE'
+        WHERE p.user_id = #{userId} AND p.status = 1 AND t.status = 1
+        ORDER BY p.created_at DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="findPostsByUserIdByAvatar" resultType="com.chatroom.tieba.vo.PostVO">
+        SELECT p.*, u.nickname as authorName,
+               u.avatar as avatar_path, u.avatar as authorAvatar,
+               t.title as threadTitle, t.id as threadId
+        FROM forum_post p
+        LEFT JOIN forum_user_profile u ON p.user_id = u.user_id
+        LEFT JOIN forum_thread t ON p.thread_id = t.id
+        WHERE p.user_id = #{userId} AND p.status = 1 AND t.status = 1
         ORDER BY p.created_at DESC
         LIMIT #{offset}, #{size}
     </select>
 
     <select id="countPostsByUserId" resultType="int">
-        SELECT COUNT(*) FROM forum_post WHERE user_id = #{userId} AND status = 'VISIBLE'
+        SELECT COUNT(*)
+        FROM forum_post p
+        INNER JOIN forum_thread t ON p.thread_id = t.id
+        WHERE p.user_id = #{userId} AND p.status = 1 AND t.status = 1
     </select>
 
 </mapper>

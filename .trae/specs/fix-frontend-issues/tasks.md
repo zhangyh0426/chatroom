@@ -1,0 +1,16 @@
+# Tasks
+- [x] Task 1: 创建统一的 `head.jsp` 文件
+  - [x] SubTask 1.1: 在 `src/main/webapp/WEB-INF/jsp/common/` 目录下创建 `head.jsp`
+  - [x] SubTask 1.2: 写入 `meta` 标签、Google Fonts `link` 标签、`apple-ui.css` 以及核心 JS (Lenis, GSAP, apple-ui.js) 依赖。
+- [x] Task 2: 重构所有 JSP 页面以使用 `head.jsp`
+  - [x] SubTask 2.1: 修改 `index.jsp`，替换重复的 head 资源。
+  - [x] SubTask 2.2: 修改 `board/board.jsp`，替换重复的 head 资源。
+  - [x] SubTask 2.3: 修改 `thread/thread.jsp`，替换重复的 head 资源。
+  - [x] SubTask 2.4: 修改 `chat/global.jsp`，替换重复的 head 资源。
+  - [x] SubTask 2.5: 修改 `auth/login.jsp` 和 `auth/register.jsp`，替换重复的 head 资源。
+  - [x] SubTask 2.6: 修改 `user/profile.jsp`，替换重复的 head 资源。
+- [x] Task 3: 修复 XSS 漏洞
+  - [x] SubTask 3.1: 在 `thread.jsp` 中移除 `escapeXml="false"`。
+  - [x] SubTask 3.2: 在 `header.jsp` 中，将直接输出的 `${sessionScope.user.nickname}` 使用 `<c:out>` 包裹。
+- [x] Task 4: 优化 `apple-ui.css`
+  - [x] SubTask 4.1: 移除第一行的 `@import` 字体加载代码。

@@ -122,7 +122,7 @@ CREATE TABLE `forum_thread` (
   `reply_count` int NOT NULL DEFAULT 0,
   `is_top` tinyint(1) NOT NULL DEFAULT 0,
   `is_essence` tinyint(1) NOT NULL DEFAULT 0,
-  `status` varchar(20) NOT NULL DEFAULT 'VISIBLE',
+  `status` tinyint(1) NOT NULL DEFAULT 1 COMMENT '1:正常,0:删除',
   `last_reply_time` datetime DEFAULT NULL,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -140,7 +140,7 @@ CREATE TABLE `forum_post` (
   `user_id` bigint unsigned NOT NULL,
   `floor_no` int NOT NULL,
   `content` text NOT NULL,
-  `status` varchar(20) NOT NULL DEFAULT 'VISIBLE',
+  `status` tinyint(1) NOT NULL DEFAULT 1 COMMENT '1:正常,0:删除',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -157,7 +157,7 @@ CREATE TABLE `forum_reply` (
   `user_id` bigint unsigned NOT NULL,
   `reply_to_user_id` bigint unsigned DEFAULT NULL,
   `content` text NOT NULL,
-  `status` varchar(20) NOT NULL DEFAULT 'VISIBLE',
+  `status` tinyint(1) NOT NULL DEFAULT 1 COMMENT '1:正常,0:删除',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -199,8 +199,23 @@ CREATE TABLE `forum_moderation_log` (
   CONSTRAINT `fk_forum_moderation_log_operator_id` FOREIGN KEY (`operator_id`) REFERENCES `forum_user_account` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE `forum_interest_partition` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `partition_code` varchar(30) NOT NULL,
+  `partition_name` varchar(50) NOT NULL,
+  `sort_order` int NOT NULL DEFAULT 0,
+  `status` varchar(20) NOT NULL DEFAULT 'ENABLED',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_forum_interest_partition_code` (`partition_code`),
+  UNIQUE KEY `uk_forum_interest_partition_name` (`partition_name`),
+  KEY `idx_forum_interest_partition_status_sort` (`status`, `sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE `forum_chat_room` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `partition_id` bigint unsigned NOT NULL,
   `room_code` varchar(30) NOT NULL,
   `room_name` varchar(100) NOT NULL,
   `room_type` varchar(20) NOT NULL DEFAULT 'PUBLIC',
@@ -208,7 +223,9 @@ CREATE TABLE `forum_chat_room` (
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_forum_chat_room_room_code` (`room_code`)
+  UNIQUE KEY `uk_forum_chat_room_room_code` (`room_code`),
+  KEY `idx_forum_chat_room_partition_id` (`partition_id`),
+  CONSTRAINT `fk_forum_chat_room_partition_id` FOREIGN KEY (`partition_id`) REFERENCES `forum_interest_partition` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE `forum_chat_message` (
@@ -217,13 +234,25 @@ CREATE TABLE `forum_chat_message` (
   `user_id` bigint unsigned NOT NULL,
   `message_type` varchar(20) NOT NULL DEFAULT 'TEXT',
   `content` text NOT NULL,
-  `status` varchar(20) NOT NULL DEFAULT 'VISIBLE',
+  `status` tinyint(1) NOT NULL DEFAULT 1 COMMENT '1:可见,0:隐藏',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `idx_forum_chat_message_room_id_created_at` (`room_id`, `created_at`),
   KEY `idx_forum_chat_message_user_id` (`user_id`),
   CONSTRAINT `fk_forum_chat_message_room_id` FOREIGN KEY (`room_id`) REFERENCES `forum_chat_room` (`id`),
   CONSTRAINT `fk_forum_chat_message_user_id` FOREIGN KEY (`user_id`) REFERENCES `forum_user_account` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `forum_chat_member` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `room_id` bigint unsigned NOT NULL,
+  `user_id` bigint unsigned NOT NULL,
+  `joined_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_forum_chat_member_room_user` (`room_id`, `user_id`),
+  KEY `idx_forum_chat_member_user_id` (`user_id`),
+  CONSTRAINT `fk_forum_chat_member_room_id` FOREIGN KEY (`room_id`) REFERENCES `forum_chat_room` (`id`),
+  CONSTRAINT `fk_forum_chat_member_user_id` FOREIGN KEY (`user_id`) REFERENCES `forum_user_account` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE `forum_chat_ban` (
@@ -249,7 +278,25 @@ INSERT INTO `forum_role` (`role_code`, `role_name`) VALUES
 ('MODERATOR', '版主'),
 ('ADMIN', '管理员');
 
-INSERT INTO `forum_chat_room` (`room_code`, `room_name`, `room_type`, `status`) VALUES
-('GLOBAL', '全站公共聊天室', 'PUBLIC', 'ENABLED');
+INSERT INTO `forum_interest_partition` (`partition_code`, `partition_name`, `sort_order`, `status`) VALUES
+('SQUARE', '广场大厅', 10, 'ENABLED'),
+('TECH_FUN', '技术与娱乐', 20, 'ENABLED'),
+('CAMPUS_LIFE', '校园生活', 30, 'ENABLED')
+ON DUPLICATE KEY UPDATE
+`partition_name` = VALUES(`partition_name`),
+`sort_order` = VALUES(`sort_order`),
+`status` = VALUES(`status`);
+
+INSERT INTO `forum_chat_room` (`partition_id`, `room_code`, `room_name`, `room_type`, `status`) VALUES
+((SELECT id FROM `forum_interest_partition` WHERE `partition_code` = 'SQUARE'), 'GLOBAL', '全站大厅', 'PUBLIC', 'ENABLED'),
+((SELECT id FROM `forum_interest_partition` WHERE `partition_code` = 'TECH_FUN'), 'TECH', '技术交流', 'PUBLIC', 'ENABLED'),
+((SELECT id FROM `forum_interest_partition` WHERE `partition_code` = 'TECH_FUN'), 'GAME', '游戏讨论', 'PUBLIC', 'ENABLED'),
+((SELECT id FROM `forum_interest_partition` WHERE `partition_code` = 'TECH_FUN'), 'MOVIE', '影视漫谈', 'PUBLIC', 'ENABLED'),
+((SELECT id FROM `forum_interest_partition` WHERE `partition_code` = 'CAMPUS_LIFE'), 'CAMPUS', '校园生活', 'PUBLIC', 'ENABLED')
+ON DUPLICATE KEY UPDATE
+`partition_id` = VALUES(`partition_id`),
+`room_name` = VALUES(`room_name`),
+`room_type` = VALUES(`room_type`),
+`status` = VALUES(`status`);
 
 SET FOREIGN_KEY_CHECKS = 1;

@@ -4,13 +4,16 @@ import com.chatroom.tieba.entity.UserProfile;
 import org.apache.ibatis.annotations.Param;
 
 public interface UserProfileMapper {
-    int insert(UserProfile profile);
-    UserProfile findByUserId(@Param("userId") Long userId);
+    int insertByAvatarPath(UserProfile profile);
+    int insertByAvatar(UserProfile profile);
+    UserProfile findByUserIdByAvatarPath(@Param("userId") Long userId);
+    UserProfile findByUserIdByAvatar(@Param("userId") Long userId);
 
-    // v1.1: 个人中心 - 更新资料
     int updateProfile(@Param("userId") Long userId,
                       @Param("nickname") String nickname,
                       @Param("bio") String bio);
-    int updateAvatar(@Param("userId") Long userId,
-                     @Param("avatarPath") String avatarPath);
+    int updateAvatarByAvatarPath(@Param("userId") Long userId,
+                                 @Param("avatarPath") String avatarPath);
+    int updateAvatarByAvatar(@Param("userId") Long userId,
+                             @Param("avatarPath") String avatarPath);
 }

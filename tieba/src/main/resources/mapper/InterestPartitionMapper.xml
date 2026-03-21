@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.chatroom.tieba.mapper.InterestPartitionMapper">
+
+    <select id="findEnabledPartitions" resultType="com.chatroom.tieba.entity.ForumInterestPartition">
+        SELECT *
+        FROM forum_interest_partition
+        WHERE status = 'ENABLED'
+        ORDER BY sort_order ASC, id ASC
+    </select>
+
+    <select id="findByCode" resultType="com.chatroom.tieba.entity.ForumInterestPartition">
+        SELECT *
+        FROM forum_interest_partition
+        WHERE partition_code = #{partitionCode}
+        LIMIT 1
+    </select>
+
+    <select id="findByName" resultType="com.chatroom.tieba.entity.ForumInterestPartition">
+        SELECT *
+        FROM forum_interest_partition
+        WHERE partition_name = #{partitionName}
+        LIMIT 1
+    </select>
+
+    <insert id="insert" parameterType="com.chatroom.tieba.entity.ForumInterestPartition" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO forum_interest_partition (partition_code, partition_name, sort_order, status)
+        VALUES (#{partitionCode}, #{partitionName}, #{sortOrder}, #{status})
+    </insert>
+
+    <update id="updateCanonicalById" parameterType="com.chatroom.tieba.entity.ForumInterestPartition">
+        UPDATE forum_interest_partition
+        SET partition_code = #{partitionCode},
+            partition_name = #{partitionName},
+            sort_order = #{sortOrder},
+            status = #{status}
+        WHERE id = #{id}
+    </update>
+
+</mapper>

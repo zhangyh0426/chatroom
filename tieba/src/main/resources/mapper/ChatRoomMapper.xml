@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.chatroom.tieba.mapper.ChatRoomMapper">
+
+    <insert id="insert" parameterType="com.chatroom.tieba.entity.ForumChatRoom" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO forum_chat_room (partition_id, room_code, room_name, room_type, status)
+        VALUES (#{partitionId}, #{roomCode}, #{roomName}, #{roomType}, #{status})
+    </insert>
+
+    <insert id="insertLegacy" parameterType="com.chatroom.tieba.entity.ForumChatRoom" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO forum_chat_room (partition_id, room_code, name, status)
+        VALUES (#{partitionId}, #{roomCode}, #{roomName}, 1)
+    </insert>
+
+    <update id="updateCanonicalById" parameterType="com.chatroom.tieba.entity.ForumChatRoom">
+        UPDATE forum_chat_room
+        SET partition_id = #{partitionId},
+            room_code = #{roomCode},
+            room_name = #{roomName},
+            room_type = #{roomType},
+            status = #{status}
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateCanonicalByIdLegacy" parameterType="com.chatroom.tieba.entity.ForumChatRoom">
+        UPDATE forum_chat_room
+        SET partition_id = #{partitionId},
+            room_code = #{roomCode},
+            name = #{roomName},
+            status = 1
+        WHERE id = #{id}
+    </update>
+
+    <select id="findVisibleRoomsByUserId" resultType="com.chatroom.tieba.vo.ChatRoomVO">
+        SELECT r.id,
+               r.partition_id,
+               p.partition_code,
+               p.partition_name,
+               r.room_code,
+               r.room_name,
+               r.room_type,
+               r.status,
+               CASE WHEN m.id IS NULL THEN 0 ELSE 1 END AS joined,
+               COUNT(all_m.id) AS member_count
+        FROM forum_chat_room r
+        JOIN forum_interest_partition p ON p.id = r.partition_id
+        LEFT JOIN forum_chat_member m ON m.room_id = r.id AND m.user_id = #{userId}
+        LEFT JOIN forum_chat_member all_m ON all_m.room_id = r.id
+        WHERE r.status = 'ENABLED' AND p.status = 'ENABLED'
+        GROUP BY r.id, r.partition_id, p.partition_code, p.partition_name, p.sort_order, p.id, r.room_code, r.room_name, r.room_type, r.status, m.id
+        ORDER BY p.sort_order ASC, p.id ASC, r.id ASC
+    </select>
+
+    <select id="findVisibleLegacyRooms" resultType="com.chatroom.tieba.vo.ChatRoomVO">
+        SELECT r.id,
+               r.partition_id,
+               p.partition_code,
+               p.partition_name,
+               r.room_code,
+               r.name AS room_name,
+               'PUBLIC' AS room_type,
+               CASE WHEN r.status = 1 THEN 'ENABLED' ELSE 'DISABLED' END AS status,
+               1 AS joined,
+               0 AS member_count
+        FROM forum_chat_room r
+        JOIN forum_interest_partition p ON p.id = r.partition_id
+        WHERE r.status = 1 AND p.status = 'ENABLED'
+        ORDER BY p.sort_order ASC, p.id ASC, r.id ASC
+    </select>
+
+    <select id="findByRoomCode" resultType="com.chatroom.tieba.entity.ForumChatRoom">
+        SELECT r.*,
+               p.partition_code,
+               p.partition_name
+        FROM forum_chat_room r
+        JOIN forum_interest_partition p ON p.id = r.partition_id
+        WHERE r.room_code = #{roomCode}
+        LIMIT 1
+    </select>
+
+    <select id="findByRoomCodeLegacy" resultType="com.chatroom.tieba.entity.ForumChatRoom">
+        SELECT r.id,
+               r.partition_id,
+               p.partition_code,
+               p.partition_name,
+               r.room_code,
+               r.name AS room_name,
+               'PUBLIC' AS room_type,
+               CASE WHEN r.status = 1 THEN 'ENABLED' ELSE 'DISABLED' END AS status
+        FROM forum_chat_room r
+        JOIN forum_interest_partition p ON p.id = r.partition_id
+        WHERE r.room_code = #{roomCode}
+        LIMIT 1
+    </select>
+
+    <select id="findByRoomName" resultType="com.chatroom.tieba.entity.ForumChatRoom">
+        SELECT r.*,
+               p.partition_code,
+               p.partition_name
+        FROM forum_chat_room r
+        JOIN forum_interest_partition p ON p.id = r.partition_id
+        WHERE r.room_name = #{roomName}
+        LIMIT 1
+    </select>
+
+    <select id="findByRoomNameLegacy" resultType="com.chatroom.tieba.entity.ForumChatRoom">
+        SELECT r.id,
+               r.partition_id,
+               p.partition_code,
+               p.partition_name,
+               r.room_code,
+               r.name AS room_name,
+               'PUBLIC' AS room_type,
+               CASE WHEN r.status = 1 THEN 'ENABLED' ELSE 'DISABLED' END AS status
+        FROM forum_chat_room r
+        JOIN forum_interest_partition p ON p.id = r.partition_id
+        WHERE r.name = #{roomName}
+        LIMIT 1
+    </select>
+
+    <select id="findById" resultType="com.chatroom.tieba.entity.ForumChatRoom">
+        SELECT r.*,
+               p.partition_code,
+               p.partition_name
+        FROM forum_chat_room r
+        JOIN forum_interest_partition p ON p.id = r.partition_id
+        WHERE r.id = #{id}
+        LIMIT 1
+    </select>
+
+    <select id="findByIdLegacy" resultType="com.chatroom.tieba.entity.ForumChatRoom">
+        SELECT r.id,
+               r.partition_id,
+               p.partition_code,
+               p.partition_name,
+               r.room_code,
+               r.name AS room_name,
+               'PUBLIC' AS room_type,
+               CASE WHEN r.status = 1 THEN 'ENABLED' ELSE 'DISABLED' END AS status
+        FROM forum_chat_room r
+        JOIN forum_interest_partition p ON p.id = r.partition_id
+        WHERE r.id = #{id}
+        LIMIT 1
+    </select>
+
+    <select id="countMembers" resultType="int">
+        SELECT COUNT(1)
+        FROM forum_chat_member
+        WHERE room_id = #{roomId}
+    </select>
+
+</mapper>

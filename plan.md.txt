@@ -1,0 +1,348 @@
+# 兴趣群组功能实施计划书
+
+## 1. 目标摘要
+- 在现有“全站公共聊天室”基础上，落地“预置兴趣群组聊天室”。
+- 功能定义已经固定：
+  - 这是“聊天群组”，不是帖子频道、不是用户标签系统。
+  - 群组由系统预置，不允许普通用户创建。
+  - 用户必须“先加入群组，再进入聊天”。
+  - 当前版本不做后台管理页，群组通过 SQL 预置。
+- 保留 `GLOBAL` 作为兼容大厅，并新增 4 个兴趣群组：`TECH`、`GAME`、`MOVIE`、`CAMPUS`。
+
+## 2. 现状深度分析
+- 项目技术栈是传统单体：
+  - `Spring MVC + MyBatis + JSP + JSTL + javax.websocket`
+  - 无 Spring Boot，无 REST 前后端分离。
+- 论坛链路已具备相对完整的分层：
+  - Controller - Service - Mapper - MyBatis XML - JSP
+- 聊天链路目前仍是“单房间硬编码”：
+  - [GlobalChatEndpoint.java](FzhaochatroomtiebasrcmainjavacomchatroomtiebawebsocketGlobalChatEndpoint.java) 只监听 `wschatglobal`
+  - 内部固定 `msg.setRoomId(1)`
+  - 连接集合 `connections` 是全局唯一集合，没有按房间隔离
+  - 广播也是全局广播
+- 聊天历史查询同样是硬编码：
+  - [ChatController.java](FzhaochatroomtiebasrcmainjavacomchatroomtiebacontrollerChatController.java) 只返回 `global.jsp`
+  - [ChatMessageMapper.xml](FzhaochatroomtiebasrcmainresourcesmapperChatMessageMapper.xml) 固定 `WHERE m.room_id = 1`
+- 数据库层已经有“房间表雏形”，但 Java 侧没有真正使用：
+  - [tieba_local_schema.sql](Fzhaochatroomsqltieba_local_schema.sql) 已有 `forum_chat_room`
+  - 但没有“成员关系表”
+  - 没有“房间查询  加入  按房间加载消息”的 Mapper 和 Service
+- 当前聊天室页面是单页单路由：
+  - [global.jsp](FzhaochatroomtiebasrcmainwebappWEB-INFjspchatglobal.jsp) 直接连 `wschatglobal`
+  - 页面没有房间列表、加入状态、未加入时的禁用状态
+- 结论：
+  - 这不是小改样式或加一个下拉框可以完成的功能
+  - 必须补齐“房间模型 + 成员关系 + 房间级路由 + 房间级 WebSocket 广播”
+
+## 3. 本次版本边界
+- 纳入范围：
+  - 兴趣群组列表页
+  - 房间详情页
+  - 加入群组
+  - 群组内历史消息
+  - 群组内实时聊天
+  - 导航和首页入口改造
+  - 兼容原 `GLOBAL` 大厅入口
+- 明确不做：
+  - 退群
+  - 群组创建编辑后台
+  - 群组头像上传
+  - 群主、管理员、踢人、禁邀
+  - 未读数、在线列表、正在输入、@提及、断线补拉
+  - 私聊
+- 验收目标：
+  - 登录用户可查看群组列表
+  - 可加入任一预置兴趣群组
+  - 加入后可进入群组页并建立 WebSocket
+  - 不同群组消息互相隔离
+  - 未加入用户不能连接该群组 WebSocket
+
+## 4. 固定业务规则
+- 预置房间清单固定如下：
+  - `GLOBAL` - `全站大厅`
+  - `TECH` - `技术交流`
+  - `GAME` - `游戏讨论`
+  - `MOVIE` - `影视漫谈`
+  - `CAMPUS` - `校园生活`
+- 房间类型统一为公开兴趣群组，不做私密房间。
+- 所有房间都要求登录。
+- 所有房间都要求先加入成员关系后才能聊天。
+- 加入操作必须幂等：
+  - 第一次插入成员记录
+  - 第二次及以后直接视为已加入，不报错
+- 历史消息默认读取最近 `50` 条，沿用现有配置 `chat.history.limit`。
+- 保留现有消息治理规则：
+  - 限频
+  - 最大长度
+  - 敏感词过滤
+
+## 5. 数据库设计变更
+### 5.1 新增表
+- 在 [sqltieba_local_schema.sql](Fzhaochatroomsqltieba_local_schema.sql) 和 [sqlschema.sql](Fzhaochatroomsqlschema.sql) 同步新增 `forum_chat_member`：
+- 字段固定为：
+  - `id bigint unsigned auto_increment primary key`
+  - `room_id bigint unsigned not null`
+  - `user_id bigint unsigned not null`
+  - `joined_at datetime not null default current_timestamp`
+- 索引与约束：
+  - 唯一键 `uk_forum_chat_member_room_user(room_id, user_id)`
+  - 索引 `idx_forum_chat_member_user_id(user_id)`
+  - 外键到 `forum_chat_room(id)`、`forum_user_account(id)`
+
+### 5.2 房间预置数据
+- 在两个 SQL 文件中补齐或统一 `forum_chat_room` 初始化数据：
+  - 插入 `GLOBAL`
+  - 插入 `TECH`
+  - 插入 `GAME`
+  - 插入 `MOVIE`
+  - 插入 `CAMPUS`
+- 若本地脚本已存在 `GLOBAL`，改为兼容性 `INSERT ... ON DUPLICATE KEY UPDATE` 或确保初始化脚本幂等。
+
+### 5.3 兼容性要求
+- 以 [sqltieba_local_schema.sql](Fzhaochatroomsqltieba_local_schema.sql) 为运行基线。
+- [sqlschema.sql](Fzhaochatroomsqlschema.sql) 同步到同一语义，避免后续 AI 误用旧字段。
+- 本次不改旧论坛表，不影响帖子回复点赞链路。
+
+## 6. Java 实体与 VO 设计
+### 6.1 新增实体
+- 新增 `ForumChatRoom`
+  - `Long id`
+  - `String roomCode`
+  - `String roomName`
+  - `String roomType`
+  - `String status`
+  - `Date createdAt`
+  - `Date updatedAt`
+- 新增 `ForumChatMember`
+  - `Long id`
+  - `Long roomId`
+  - `Long userId`
+  - `Date joinedAt`
+
+### 6.2 调整现有实体
+- [ForumChatMessage.java](FzhaochatroomtiebasrcmainjavacomchatroomtiebaentityForumChatMessage.java)
+  - `roomId` 从 `Integer` 改为 `Long`
+  - 保持其他字段不变
+- [ChatMessageVO.java](FzhaochatroomtiebasrcmainjavacomchatroomtiebavoChatMessageVO.java)
+  - 保持现有 `nickname`、`avatar`
+  - 新增 `roomCode` 可选字段，便于前端或日志定位
+- 新增 `ChatRoomVO`
+  - `Long id`
+  - `String roomCode`
+  - `String roomName`
+  - `String roomType`
+  - `String status`
+  - `boolean joined`
+  - `int memberCount`
+
+## 7. Mapper 与 SQL 设计
+### 7.1 新增 `ChatRoomMapper`
+- 方法固定为：
+  - `ListChatRoomVO findVisibleRoomsByUserId(Long userId)`
+  - `ForumChatRoom findByRoomCode(String roomCode)`
+  - `ForumChatRoom findById(Long id)`
+  - `int countMembers(Long roomId)`
+- `findVisibleRoomsByUserId` 需左联 `forum_chat_member`，直接返回用户是否已加入。
+
+### 7.2 新增 `ChatMemberMapper`
+- 方法固定为：
+  - `int insertIgnoreOrInsert(ForumChatMember member)` 或等价幂等实现
+  - `ForumChatMember findByRoomIdAndUserId(Long roomId, Long userId)`
+  - `int countByRoomId(Long roomId)`
+- 实现要求：
+  - MySQL 下优先用 `INSERT IGNORE`
+  - 若团队风格不允许，可先查后插，但最终必须对重复加入安全
+
+### 7.3 调整 `ChatMessageMapper`
+- 保留插入消息方法，但不再写死房间。
+- 新增：
+  - `ListChatMessageVO findRecentMessagesByRoomId(@Param(roomId) Long roomId, @Param(limit) int limit)`
+  - avatar 兼容 fallback 方法
+- 删除或废弃：
+  - `findRecentGlobalMessages`
+  - `findRecentGlobalMessagesByAvatar`
+- 查询条件统一改成 `WHERE m.room_id = #{roomId} AND m.status = 1`
+
+## 8. Service 层设计
+### 8.1 新增 `ChatRoomService`
+- 接口方法固定为：
+  - `ListChatRoomVO getRoomList(Long userId)`
+  - `ForumChatRoom getRoomByCode(String roomCode)`
+  - `boolean hasJoined(Long roomId, Long userId)`
+  - `void joinRoom(Long roomId, Long userId)`
+  - `ListChatMessageVO getRecentMessages(String roomCode, int limit)`
+- 行为约束：
+  - `getRoomByCode` 房间不存在时报明确异常
+  - 房间状态非 `ENABLED` 时拒绝进入
+  - `joinRoom` 必须校验房间存在且启用
+  - `getRecentMessages` 必须先查房间，再按真实 `roomId` 查消息
+
+### 8.2 现有 `ForumService` 不承接聊天室逻辑
+- 不把兴趣群组混入 `ForumService`
+- 保持论坛域和聊天域解耦
+- 聊天域独立服务，避免后续私聊通知中心继续污染论坛服务
+
+## 9. Controller 路由设计
+### 9.1 `ChatController` 重构
+- 路由固定为：
+  - `GET chatrooms`
+    - 展示群组列表页
+  - `GET chatrooms{roomCode}`
+    - 展示群组详情页
+    - 已加入：返回消息页
+    - 未加入：返回同页但禁用输入框，并展示加入按钮
+  - `POST chatrooms{roomCode}join`
+    - 加入群组
+    - 成功后重定向 `chatrooms{roomCode}`
+  - `GET chatglobal`
+    - 兼容入口，重定向到 `chatroomsGLOBAL`
+- 模型数据要求：
+  - 列表页带 `rooms`
+  - 详情页带 `room`、`history`、`joined`
+
+### 9.2 拦截器影响
+- [LoginInterceptor.java](FzhaochatroomtiebasrcmainjavacomchatroomtiebainterceptorLoginInterceptor.java) 保持 `chat` 登录拦截。
+- 无需新增未登录分支逻辑，只需保证新路由仍走现有登录保护。
+
+## 10. WebSocket 设计
+### 10.1 端点改造
+- 将 [GlobalChatEndpoint.java](FzhaochatroomtiebasrcmainjavacomchatroomtiebawebsocketGlobalChatEndpoint.java) 改造成通用房间端点。
+- 推荐直接重命名为 `ChatRoomEndpoint`。
+- 端点路径固定为：
+  - `wschatrooms{roomCode}`
+
+### 10.2 连接上下文
+- 每个连接必须保存：
+  - `Session wsSession`
+  - `UserSessionDTO user`
+  - `String roomCode`
+  - `Long roomId`
+- 连接集合改为：
+  - `MapString, CopyOnWriteArraySetChatRoomEndpoint`
+- 广播时仅向当前 `roomCode` 对应集合发送。
+
+### 10.3 `onOpen` 规则
+- 从 `HttpSession` 取登录用户
+- 从路径参数取 `roomCode`
+- 校验顺序固定：
+  - 用户已登录
+  - 房间存在
+  - 房间启用
+  - 用户已加入该房间
+- 任一失败都以 `CloseCodes.VIOLATED_POLICY` 关闭，并返回明确原因。
+
+### 10.4 `onMessage` 规则
+- 继续复用现有 `ChatMessagePolicy`
+- 校验通过后：
+  - 组装 `ForumChatMessage`
+  - `roomId` 使用当前连接所属房间
+  - 落库
+  - 组装 `ChatMessageVO`
+  - 仅广播到当前房间连接集合
+- 不再允许任何默认写入 `roomId = 1`
+
+## 11. JSP 页面改造
+### 11.1 新增群组列表页
+- 新建 `chatrooms.jsp`
+- 内容固定包括：
+  - 页面标题“兴趣群组”
+  - 每个房间卡片展示：
+    - 房间名
+    - 房间编码
+    - 成员数
+    - 是否已加入
+    - 进入加入按钮
+- 已加入按钮文案：`进入群组`
+- 未加入按钮文案：`加入群组`
+
+### 11.2 新增通用房间页
+- 新建 `chatroom.jsp`
+- 页面结构沿用现有 `global.jsp` 的聊天气泡和消息流样式
+- 新增房间头信息：
+  - 房间名
+  - 房间编码
+  - 加入状态
+- 未加入状态：
+  - 不初始化 WebSocket
+  - 输入框 disabled
+  - 显示“加入后才可发言”
+  - 显示加入表单按钮
+- 已加入状态：
+  - WebSocket 地址使用 `wschatrooms${room.roomCode}`
+  - 历史消息按当前房间展示
+
+### 11.3 现有页面入口调整
+- [header.jsp](FzhaochatroomtiebasrcmainwebappWEB-INFjspcommonheader.jsp)
+  - 将“公共聊天室”改为“兴趣群组”
+  - 链接到 `chatrooms`
+- [index.jsp](FzhaochatroomtiebasrcmainwebappWEB-INFjspindex.jsp)
+  - Hero 区按钮改为“进入兴趣群组”
+  - 群组入口文案替换“公共聊天室”
+  - 可保留一张 `GLOBAL` 快捷卡或文案说明“含全站大厅与兴趣群组”
+- [global.jsp](FzhaochatroomtiebasrcmainwebappWEB-INFjspchatglobal.jsp)
+  - 不再作为主页面
+  - 可删除，或仅保留为兼容跳转占位
+  - 如果保留，控制器不要再直接渲染它
+
+## 12. 实施顺序
+1. 统一 SQL 结构并新增 `forum_chat_member`
+2. 新增实体、VO、Mapper 接口与 XML
+3. 新增 `ChatRoomService` 与实现类
+4. 重构 `ChatController` 为群组列表 + 群组详情 + 加入路由
+5. 重构 WebSocket 为按 `roomCode` 路由与广播
+6. 新建 `rooms.jsp` 与 `room.jsp`
+7. 调整 `header.jsp`、`index.jsp` 聊天入口
+8. 清理或兼容 `global.jsp`
+9. 补单元测试
+10. 手工联调页面与聊天室隔离行为
+
+## 13. 测试计划
+### 13.1 Service 测试
+- 查询房间列表时，已加入房间 `joined = true`
+- 未加入房间 `joined = false`
+- 重复加入不报错
+- 不存在房间时报错
+- 禁用房间不可加入
+
+### 13.2 WebSocket 测试
+- 已加入 `TECH` 的用户可连 `TECH`
+- 未加入 `TECH` 的用户连接被拒绝
+- `TECH` 发言不会广播到 `GAME`
+- 消息落库的 `room_id` 正确
+- 限频、敏感词、超长内容仍然生效
+
+### 13.3 页面联调
+- `chatrooms` 可展示全部预置房间
+- 加入后刷新仍显示已加入
+- 未加入时详情页输入框不可用
+- 已加入后详情页自动连接 WebSocket
+- `chatglobal` 能跳到 `GLOBAL`
+
+### 13.4 回归验证
+- 首页、吧页、帖子页、个人中心正常
+- 头像显示逻辑不回归
+- 登录拦截不回归
+
+## 14. 明确的默认实现决策
+- 房间状态值沿用本地脚本风格：`ENABLED`
+- 房间类型统一写 `PUBLIC`
+- 历史消息条数默认 `50`
+- 不做分页消息历史
+- 不做成员列表 UI
+- 不做退群接口
+- 不做聊天室后台管理页
+- 不把兴趣群组和贴吧 `board` 做自动映射
+
+## 15. 风险与注意事项
+- 当前仓库工作区是脏的，实施时必须增量修改，禁止回滚现有未提交改动。
+- 本地存在 SQL 双脚本漂移，必须先统一聊天室相关定义，否则实现时容易对错字段。
+- 当前环境没有可用 `mvn`，执行窗口需要先确认 Maven 或 Maven Wrapper 可用，否则只能静态改代码无法完成测试闭环。
+- `target` 下已有旧产物，实施和审查应只看 `srcmain`、`srctest`、`sql`。
+
+## 16. 执行完成标准
+- 新增兴趣群组列表与加入流程可用
+- 五个预置房间可见且可进入
+- 加入前不能聊天，加入后才能聊天
+- 房间消息历史和实时广播均按房间隔离
+- 原 `GLOBAL` 入口兼容可用
+- 相关测试补齐并通过

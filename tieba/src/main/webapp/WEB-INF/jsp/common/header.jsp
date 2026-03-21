@@ -12,13 +12,14 @@
 
         <nav class="nav-links">
             <a href="${pageContext.request.contextPath}/">发现</a>
-            <a href="${pageContext.request.contextPath}/chat/global">公共聊天室</a>
+            <a href="${pageContext.request.contextPath}/chat/global">聊天室</a>
+            <a href="${pageContext.request.contextPath}/chat/rooms#rooms-lobby">兴趣群组</a>
         </nav>
 
         <div class="user-panel">
             <c:choose>
                 <c:when test="${not empty sessionScope.user}">
-                    <span>你好，<strong>${sessionScope.user.nickname}</strong></span>
+                    <span>你好，<strong><c:out value="${sessionScope.user.nickname}" /></strong></span>
                     <a href="${pageContext.request.contextPath}/user/profile" class="btn btn-sm btn-ghost">个人中心</a>
                     <a href="${pageContext.request.contextPath}/auth/logout" class="btn btn-sm btn-outline">退出</a>
                 </c:when>

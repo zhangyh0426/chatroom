@@ -20,6 +20,7 @@
 
     <!-- 静态资源放行 -->
     <mvc:resources mapping="/static/**" location="/static/" />
+    <mvc:resources mapping="/uploads/**" location="file:${upload.path}/" />
 
     <!-- Servlet 3.0 文件上传解析器 -->
     <bean id="multipartResolver" class="org.springframework.web.multipart.support.StandardServletMultipartResolver" />
@@ -33,19 +34,20 @@
     <!-- 拦截器配置 -->
     <mvc:interceptors>
         <mvc:interceptor>
-            <!-- 需拦截的路径（如发帖、登出、用户中心、聊天室等） -->
-            <mvc:mapping path="/post/**"/>
-            <mvc:mapping path="/thread/create/**"/>
+            <mvc:mapping path="/board/post/**"/>
+            <mvc:mapping path="/thread/reply/**"/>
+            <mvc:mapping path="/thread/subreply/**"/>
+            <mvc:mapping path="/thread/api/**"/>
+            <mvc:mapping path="/api/thread/**"/>
             <mvc:mapping path="/chat/**"/>
             <mvc:mapping path="/user/**"/>
             <mvc:mapping path="/api/user/**"/>
             <mvc:mapping path="/auth/logout"/>
-            
-            <!-- 放行静态资源和登录注册等 -->
+
             <mvc:exclude-mapping path="/static/**"/>
             <mvc:exclude-mapping path="/auth/login"/>
             <mvc:exclude-mapping path="/auth/register"/>
-            
+
             <bean class="com.chatroom.tieba.interceptor.LoginInterceptor" />
         </mvc:interceptor>
     </mvc:interceptors>

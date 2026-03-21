@@ -1,14 +1,12 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 <%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
+<%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <jsp:include page="/WEB-INF/jsp/common/head.jsp" />
     <title>${thread.title} - 本地贴吧</title>
-    <link rel="stylesheet" href="${pageContext.request.contextPath}/static/css/apple-ui.css">
-    <script defer src="${pageContext.request.contextPath}/static/js/apple-ui.js"></script>
     <script>
         function toggleSubReply(postId, replyUserId, replyUserName) {
             var formDiv = document.getElementById('sub-form-' + postId);
@@ -33,6 +31,51 @@
                 textarea.focus();
             }
         }
+
+        async function likeThread(threadId) {
+            var feedback = document.getElementById('like-feedback');
+            try {
+                var response = await fetch('${pageContext.request.contextPath}/thread/api/' + threadId + '/like', {
+                    method: 'POST',
+                    headers: { 'Accept': 'application/json' },
+                    credentials: 'same-origin'
+                });
+                var payload = await response.json();
+                if (!response.ok || !payload.success) {
+                    feedback.textContent = payload.message || '操作失败，请稍后重试';
+                    return;
+                }
+                feedback.textContent = payload.message;
+                if (payload.liked) {
+                    var likeCounter = document.getElementById('thread-like-count');
+                    likeCounter.textContent = String((parseInt(likeCounter.textContent || '0', 10) || 0) + 1);
+                }
+            } catch (error) {
+                feedback.textContent = '网络异常，请稍后重试';
+            }
+        }
+
+        async function deleteThread(threadId, boardId) {
+            var feedback = document.getElementById('delete-feedback');
+            if (!window.confirm('确认删除这个话题吗？删除后不可恢复。')) {
+                return;
+            }
+            try {
+                var response = await fetch('${pageContext.request.contextPath}/thread/api/' + threadId + '/delete', {
+                    method: 'POST',
+                    headers: { 'Accept': 'application/json' },
+                    credentials: 'same-origin'
+                });
+                var payload = await response.json();
+                if (!response.ok || !payload.success) {
+                    feedback.textContent = payload.message || '删除失败，请稍后重试';
+                    return;
+                }
+                window.location.href = '${pageContext.request.contextPath}/board/' + boardId;
+            } catch (error) {
+                feedback.textContent = '网络异常，请稍后重试';
+            }
+        }
     </script>
 </head>
 <body class="page-thread">
@@ -48,7 +91,23 @@
             <div class="thread-head-meta">
                 浏览 <strong data-count="${thread.viewCount}">${thread.viewCount}</strong>
                 · 回复 <strong data-count="${thread.replyCount}">${thread.replyCount}</strong>
+                · 点赞 <strong id="thread-like-count" data-count="${thread.likeCount == null ? 0 : thread.likeCount}">${thread.likeCount == null ? 0 : thread.likeCount}</strong>
                 · 发布时间 <fmt:formatDate value="${thread.createdAt}" pattern="yyyy-MM-dd HH:mm"/>
+            </div>
+            <div style="margin-top:12px;display:flex;gap:12px;align-items:center;">
+                <c:choose>
+                    <c:when test="${not empty sessionScope.user}">
+                        <button type="button" class="btn btn-sm" onclick="likeThread('${thread.id}')">点赞</button>
+                        <c:if test="${sessionScope.user.id == thread.userId}">
+                            <button type="button" class="btn btn-sm btn-ghost" onclick="deleteThread('${thread.id}', '${boardId}')">删除</button>
+                        </c:if>
+                    </c:when>
+                    <c:otherwise>
+                        <a href="${pageContext.request.contextPath}/auth/login" class="btn btn-sm btn-ghost">登录后点赞</a>
+                    </c:otherwise>
+                </c:choose>
+                <span id="like-feedback" class="thread-meta"></span>
+                <span id="delete-feedback" class="thread-meta"></span>
             </div>
         </section>
 
@@ -56,14 +115,27 @@
             <article class="post-layout" data-reveal>
                 <aside class="post-author interactive-card">
                     <div class="avatar-ring">
-                        <img src="${pageContext.request.contextPath}/static/img/default-avatar.png" alt="avatar" onerror="this.src='data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='">
+                        <c:choose>
+                            <c:when test="${not empty post.authorAvatar}">
+                                <c:set var="postAvatarUrl" value="${post.authorAvatar}" />
+                                <c:if test="${not (fn:startsWith(postAvatarUrl, 'http://')
+                                                   or fn:startsWith(postAvatarUrl, 'https://')
+                                                   or fn:startsWith(postAvatarUrl, pageContext.request.contextPath))}">
+                                    <c:set var="postAvatarUrl" value="${pageContext.request.contextPath}${postAvatarUrl}" />
+                                </c:if>
+                                <img src="${postAvatarUrl}" alt="avatar" onerror="this.src='${pageContext.request.contextPath}/static/img/default-avatar.svg'">
+                            </c:when>
+                            <c:otherwise>
+                                <img src="${pageContext.request.contextPath}/static/img/default-avatar.svg" alt="avatar">
+                            </c:otherwise>
+                        </c:choose>
                     </div>
                     <div class="post-nickname"><c:out value="${post.authorName}"/></div>
                 </aside>
 
                 <section class="post-body interactive-card">
                     <div class="post-content">
-                        <c:out value="${post.content}" escapeXml="false"/>
+                        <c:out value="${post.content}" />
                     </div>
 
                     <div class="post-foot">
