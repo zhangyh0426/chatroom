@@ -7,5 +7,6 @@ import java.util.List;
 public interface InterestPartitionService {
     List<ForumInterestPartition> getEnabledPartitions();
     ForumInterestPartition getByCode(String partitionCode);
+    ForumInterestPartition createPartition(String partitionName);
     void createPartition(String partitionCode, String partitionName, Integer sortOrder);
 }

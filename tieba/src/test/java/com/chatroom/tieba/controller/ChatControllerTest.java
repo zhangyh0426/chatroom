@@ -18,10 +18,10 @@ import org.springframework.ui.Model;
 import org.springframework.web.servlet.mvc.support.RedirectAttributesModelMap;
 
 import javax.servlet.http.HttpSession;
+import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -38,7 +38,9 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class ChatControllerTest {
+
     private static final String PARTITION_TABLE_MISSING_FEEDBACK = "请先执行 sql/v1.2_interest_partition_migration.sql 后重试加载";
+    private static final String CREATE_PANEL_REDIRECT = "redirect:/chat/rooms?create=1#rooms-create";
 
     @Mock
     private ChatRoomService chatRoomService;
@@ -64,7 +66,7 @@ class ChatControllerTest {
     }
 
     @Test
-    void shouldRenderRoomListPage() {
+    void shouldRenderRoomListPageWithInlineCreateDefaults() {
         UserSessionDTO user = buildUser();
         ChatRoomVO room = new ChatRoomVO();
         room.setRoomCode("GLOBAL");
@@ -78,13 +80,48 @@ class ChatControllerTest {
         when(interestPartitionService.getEnabledPartitions()).thenReturn(List.of(partition));
         Model model = new ExtendedModelMap();
 
-        String view = chatController.chatRooms(httpSession, model);
+        String view = chatController.chatRooms(null, httpSession, model);
 
         assertEquals("chat/rooms", view);
         assertEquals(1, ((List<?>) model.getAttribute("rooms")).size());
         assertFalse((Boolean) model.getAttribute("roomsLoadFailed"));
-        assertEquals(1, ((java.util.Map<?, ?>) model.getAttribute("partitionedRooms")).size());
+        assertFalse((Boolean) model.getAttribute("showCreatePanel"));
+        assertEquals("existing", model.getAttribute("createPartitionMode"));
+        assertEquals("SQUARE", model.getAttribute("createExistingPartitionCode"));
         verify(chatRoomService).ensureDefaultGlobalRoomReady();
+    }
+
+    @Test
+    void shouldOpenCreatePanelWhenRequested() {
+        UserSessionDTO user = buildUser();
+        ForumInterestPartition partition = new ForumInterestPartition();
+        partition.setPartitionCode("TECH_FUN");
+        partition.setPartitionName("技术与娱乐");
+        when(httpSession.getAttribute("user")).thenReturn(user);
+        when(avatarSchemaStartupChecker.probeInterestPartitionTableReady()).thenReturn(true);
+        when(chatRoomService.getRoomList(1L)).thenReturn(List.of());
+        when(interestPartitionService.getEnabledPartitions()).thenReturn(List.of(partition));
+        Model model = new ExtendedModelMap();
+
+        chatController.chatRooms("1", httpSession, model);
+
+        assertTrue((Boolean) model.getAttribute("showCreatePanel"));
+    }
+
+    @Test
+    void shouldDefaultToNewPartitionModeWhenNoPartitionsExist() {
+        UserSessionDTO user = buildUser();
+        when(httpSession.getAttribute("user")).thenReturn(user);
+        when(avatarSchemaStartupChecker.probeInterestPartitionTableReady()).thenReturn(true);
+        when(chatRoomService.getRoomList(1L)).thenReturn(List.of());
+        when(interestPartitionService.getEnabledPartitions()).thenReturn(List.of());
+        Model model = new ExtendedModelMap();
+
+        chatController.chatRooms(null, httpSession, model);
+
+        assertEquals("new", model.getAttribute("createPartitionMode"));
+        assertEquals("", model.getAttribute("createExistingPartitionCode"));
+        assertTrue((Boolean) model.getAttribute("showCreatePanel"));
     }
 
     @Test
@@ -95,7 +132,7 @@ class ChatControllerTest {
         when(chatRoomService.getRoomList(1L)).thenThrow(new RuntimeException("列表暂时不可用"));
         Model model = new ExtendedModelMap();
 
-        String view = chatController.chatRooms(httpSession, model);
+        String view = chatController.chatRooms(null, httpSession, model);
 
         assertEquals("chat/rooms", view);
         assertTrue((Boolean) model.getAttribute("roomsLoadFailed"));
@@ -111,7 +148,7 @@ class ChatControllerTest {
         when(avatarSchemaStartupChecker.probeInterestPartitionTableReady()).thenReturn(false);
         Model model = new ExtendedModelMap();
 
-        String view = chatController.chatRooms(httpSession, model);
+        String view = chatController.chatRooms(null, httpSession, model);
 
         assertEquals("chat/rooms", view);
         assertTrue((Boolean) model.getAttribute("roomsLoadFailed"));
@@ -129,7 +166,7 @@ class ChatControllerTest {
                 .thenThrow(new RuntimeException("Table 'tieba_local.forum_interest_partition' doesn't exist"));
         Model model = new ExtendedModelMap();
 
-        String view = chatController.chatRooms(httpSession, model);
+        String view = chatController.chatRooms(null, httpSession, model);
 
         assertEquals("chat/rooms", view);
         assertTrue((Boolean) model.getAttribute("roomsLoadFailed"));
@@ -147,7 +184,7 @@ class ChatControllerTest {
         when(interestPartitionService.getEnabledPartitions()).thenReturn(List.of());
         Model model = new ExtendedModelMap();
 
-        String view = chatController.chatRooms(httpSession, model);
+        String view = chatController.chatRooms(null, httpSession, model);
 
         assertEquals("chat/rooms", view);
         assertTrue((Boolean) model.getAttribute("roomsLoadFailed"));
@@ -155,29 +192,27 @@ class ChatControllerTest {
     }
 
     @Test
-    void shouldKeepRetryLoadEntryOnRoomsPageTemplate() throws Exception {
+    void shouldExposeInlineCreateOnRoomsTemplate() throws Exception {
         String template = Files.readString(Path.of("src/main/webapp/WEB-INF/jsp/chat/rooms.jsp"), StandardCharsets.UTF_8);
 
-        assertTrue(template.contains("${roomsFeedback}"));
-        assertTrue(template.contains("alert alert-info"));
-        assertTrue(template.contains(">重试加载<"));
-        assertTrue(template.contains("/chat/rooms/manage"));
-        assertTrue(template.contains("<a class=\"board-card interactive-card\""));
-        assertTrue(template.contains("class=\"board-cta ${room.joined ? 'is-joined' : ''}\""));
-        assertFalse(template.contains("先建分区再建分组"));
-        assertFalse(template.contains("action=\"${pageContext.request.contextPath}/chat/rooms/create\""));
-        assertFalse(template.contains("onclick=\"window.location.href"));
-        assertFalse(template.contains("role=\"link\""));
-        assertFalse(template.contains("tabindex=\"0\""));
+        assertTrue(template.contains("data-room-create-root"));
+        assertTrue(template.contains("name=\"partitionMode\""));
+        assertTrue(template.contains("name=\"existingPartitionCode\""));
+        assertTrue(template.contains("name=\"newPartitionName\""));
+        assertTrue(template.contains("快速创建群组"));
+        assertFalse(template.contains("name=\"roomCode\""));
+        assertFalse(template.contains("房间编码"));
+        assertFalse(template.contains("/chat/rooms/manage"));
     }
 
     @Test
-    void shouldExposeCreateFormOnManagePageTemplate() throws Exception {
-        String template = Files.readString(Path.of("src/main/webapp/WEB-INF/jsp/chat/manage.jsp"), StandardCharsets.UTF_8);
+    void shouldRedirectManageRouteToInlineCreator() {
+        UserSessionDTO user = buildUser();
+        when(httpSession.getAttribute("user")).thenReturn(user);
 
-        assertTrue(template.contains("创建兴趣分区与群组"));
-        assertTrue(template.contains("先建分区再建分组"));
-        assertTrue(template.contains("action=\"${pageContext.request.contextPath}/chat/rooms/create\""));
+        String view = chatController.manageChatRooms(httpSession);
+
+        assertEquals(CREATE_PANEL_REDIRECT, view);
     }
 
     @Test
@@ -196,8 +231,8 @@ class ChatControllerTest {
         Model firstModel = new ExtendedModelMap();
         Model secondModel = new ExtendedModelMap();
 
-        String firstView = chatController.chatRooms(httpSession, firstModel);
-        String secondView = chatController.chatRooms(httpSession, secondModel);
+        String firstView = chatController.chatRooms(null, httpSession, firstModel);
+        String secondView = chatController.chatRooms(null, httpSession, secondModel);
 
         assertEquals("chat/rooms", firstView);
         assertTrue((Boolean) firstModel.getAttribute("roomsLoadFailed"));
@@ -226,7 +261,7 @@ class ChatControllerTest {
         when(chatRoomService.getRoomList(1L)).thenReturn(List.of(room));
         Model model = new ExtendedModelMap();
 
-        String view = chatController.chatRooms(httpSession, model);
+        String view = chatController.chatRooms(null, httpSession, model);
 
         assertEquals("chat/rooms", view);
         assertFalse((Boolean) model.getAttribute("roomsLoadFailed"));
@@ -314,99 +349,57 @@ class ChatControllerTest {
     }
 
     @Test
-    void shouldCreatePartitionThenRoomAndRedirectWithSuccess() {
-        UserSessionDTO user = buildUser();
-        when(httpSession.getAttribute("user")).thenReturn(user);
-        RedirectAttributesModelMap redirectAttributes = new RedirectAttributesModelMap();
-
-        String view = chatController.createChatRoom("TECH_FUN", "技术与娱乐", 20, "book_club", "读书会", httpSession, redirectAttributes);
-
-        assertEquals("redirect:/chat/rooms", view);
-        assertEquals("兴趣分区与分组创建成功", redirectAttributes.getFlashAttributes().get("success"));
-        inOrder(interestPartitionService, chatRoomService).verify(interestPartitionService).createPartition("TECH_FUN", "技术与娱乐", 20);
-        verify(chatRoomService).createRoom("TECH_FUN", "book_club", "读书会");
-    }
-
-    @Test
-    void shouldRenderManagePageWithEnabledPartitions() {
+    void shouldCreateRoomInExistingPartitionAndRedirectWithSuccess() {
         UserSessionDTO user = buildUser();
         ForumInterestPartition partition = new ForumInterestPartition();
         partition.setPartitionCode("TECH_FUN");
-        partition.setPartitionName("技术与娱乐");
         when(httpSession.getAttribute("user")).thenReturn(user);
-        when(avatarSchemaStartupChecker.probeInterestPartitionTableReady()).thenReturn(true);
-        when(interestPartitionService.getEnabledPartitions()).thenReturn(List.of(partition));
-        Model model = new ExtendedModelMap();
-
-        String view = chatController.manageChatRooms(httpSession, model);
-
-        assertEquals("chat/manage", view);
-        assertFalse((Boolean) model.getAttribute("manageLoadFailed"));
-        assertEquals(1, ((List<?>) model.getAttribute("partitions")).size());
-    }
-
-    @Test
-    void shouldRenderManagePageFallbackWhenSchemaNotReady() {
-        UserSessionDTO user = buildUser();
-        when(httpSession.getAttribute("user")).thenReturn(user);
-        when(avatarSchemaStartupChecker.probeInterestPartitionTableReady()).thenReturn(false);
-        Model model = new ExtendedModelMap();
-
-        String view = chatController.manageChatRooms(httpSession, model);
-
-        assertEquals("chat/manage", view);
-        assertTrue((Boolean) model.getAttribute("manageLoadFailed"));
-        assertEquals(PARTITION_TABLE_MISSING_FEEDBACK, model.getAttribute("manageFeedback"));
-        assertEquals(0, ((List<?>) model.getAttribute("partitions")).size());
-    }
-
-    @Test
-    void shouldBlockRoomCreationWhenCreatePartitionFailed() {
-        UserSessionDTO user = buildUser();
-        when(httpSession.getAttribute("user")).thenReturn(user);
-        doThrow(new RuntimeException("分区排序值不能小于0")).when(interestPartitionService).createPartition("book_zone", "阅读空间", 2);
+        when(interestPartitionService.getByCode("TECH_FUN")).thenReturn(partition);
         RedirectAttributesModelMap redirectAttributes = new RedirectAttributesModelMap();
 
-        String view = chatController.createChatRoom("book_zone", "阅读空间", 2, "book_club", "读书会", httpSession, redirectAttributes);
-
-        assertEquals("redirect:/chat/rooms/manage", view);
-        assertEquals("分区排序值不能小于0", redirectAttributes.getFlashAttributes().get("error"));
-        assertEquals("book_zone", redirectAttributes.getFlashAttributes().get("createPartitionCode"));
-        assertEquals("阅读空间", redirectAttributes.getFlashAttributes().get("createPartitionName"));
-        assertEquals(2, redirectAttributes.getFlashAttributes().get("createPartitionSortOrder"));
-        assertEquals("book_club", redirectAttributes.getFlashAttributes().get("createRoomCode"));
-        assertEquals("读书会", redirectAttributes.getFlashAttributes().get("createRoomName"));
-        verify(chatRoomService, never()).createRoom("book_zone", "book_club", "读书会");
-    }
-
-    @Test
-    void shouldContinueCreateRoomWhenPartitionAlreadyExists() {
-        UserSessionDTO user = buildUser();
-        when(httpSession.getAttribute("user")).thenReturn(user);
-        doThrow(new RuntimeException("分区编码已存在")).when(interestPartitionService).createPartition("book_zone", "阅读空间", 2);
-        RedirectAttributesModelMap redirectAttributes = new RedirectAttributesModelMap();
-
-        String view = chatController.createChatRoom("book_zone", "阅读空间", 2, "book_club", "读书会", httpSession, redirectAttributes);
+        String view = chatController.createChatRoom("existing", "TECH_FUN", null, "读书会", httpSession, redirectAttributes);
 
         assertEquals("redirect:/chat/rooms", view);
-        assertEquals("兴趣分区与分组创建成功", redirectAttributes.getFlashAttributes().get("success"));
-        assertFalse(redirectAttributes.getFlashAttributes().containsKey("error"));
-        verify(chatRoomService).createRoom("book_zone", "book_club", "读书会");
+        assertEquals("兴趣群组创建成功", redirectAttributes.getFlashAttributes().get("success"));
+        verify(chatRoomService).createRoom("TECH_FUN", "读书会");
     }
 
     @Test
-    void shouldKeepFormWhenCreateRoomFailedAfterPartitionCreated() {
+    void shouldCreatePartitionThenRoomForNewPartitionMode() {
         UserSessionDTO user = buildUser();
+        ForumInterestPartition partition = new ForumInterestPartition();
+        partition.setPartitionCode("PART_ABCD");
         when(httpSession.getAttribute("user")).thenReturn(user);
-        doThrow(new RuntimeException("群组编码已存在")).when(chatRoomService).createRoom("TECH_FUN", "book_club", "读书会");
+        when(interestPartitionService.createPartition("技术与娱乐")).thenReturn(partition);
         RedirectAttributesModelMap redirectAttributes = new RedirectAttributesModelMap();
 
-        String view = chatController.createChatRoom("TECH_FUN", "技术与娱乐", 20, "book_club", "读书会", httpSession, redirectAttributes);
+        String view = chatController.createChatRoom("new", "", "技术与娱乐", "读书会", httpSession, redirectAttributes);
 
-        assertEquals("redirect:/chat/rooms/manage", view);
-        assertEquals("群组编码已存在", redirectAttributes.getFlashAttributes().get("error"));
-        verify(interestPartitionService).createPartition("TECH_FUN", "技术与娱乐", 20);
-        verify(chatRoomService).createRoom("TECH_FUN", "book_club", "读书会");
+        assertEquals("redirect:/chat/rooms", view);
+        inOrder(interestPartitionService, chatRoomService)
+                .verify(interestPartitionService).createPartition("技术与娱乐");
+        verify(chatRoomService).createRoom("PART_ABCD", "读书会");
+    }
+
+    @Test
+    void shouldKeepInlineFormStateWhenCreateFails() {
+        UserSessionDTO user = buildUser();
+        when(httpSession.getAttribute("user")).thenReturn(user);
+        doThrow(new RuntimeException("群组名称已存在")).when(chatRoomService).createRoom("TECH_FUN", "读书会");
+        ForumInterestPartition partition = new ForumInterestPartition();
+        partition.setPartitionCode("TECH_FUN");
+        when(interestPartitionService.getByCode("TECH_FUN")).thenReturn(partition);
+        RedirectAttributesModelMap redirectAttributes = new RedirectAttributesModelMap();
+
+        String view = chatController.createChatRoom("existing", "TECH_FUN", "", "读书会", httpSession, redirectAttributes);
+
+        assertEquals(CREATE_PANEL_REDIRECT, view);
+        assertEquals("群组名称已存在", redirectAttributes.getFlashAttributes().get("error"));
+        assertEquals(true, redirectAttributes.getFlashAttributes().get("showCreatePanel"));
+        assertEquals("existing", redirectAttributes.getFlashAttributes().get("createPartitionMode"));
+        assertEquals("TECH_FUN", redirectAttributes.getFlashAttributes().get("createExistingPartitionCode"));
+        assertEquals("", redirectAttributes.getFlashAttributes().get("createNewPartitionName"));
+        assertEquals("读书会", redirectAttributes.getFlashAttributes().get("createRoomName"));
     }
 
     @Test
@@ -454,7 +447,7 @@ class ChatControllerTest {
     void shouldThrowWhenNoLogin() {
         when(httpSession.getAttribute("user")).thenReturn(null);
 
-        RuntimeException ex = assertThrows(RuntimeException.class, () -> chatController.chatRooms(httpSession, new ExtendedModelMap()));
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> chatController.chatRooms(null, httpSession, new ExtendedModelMap()));
 
         assertEquals("请先登录", ex.getMessage());
     }

@@ -24,9 +24,11 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -324,6 +326,93 @@ class ChatRoomServiceImplTest {
 
         verify(chatRoomMapper).insert(any(ForumChatRoom.class));
         verify(chatRoomMapper).findById(88L);
+    }
+
+    @Test
+    void shouldCreateRoomWithGeneratedCode() {
+        when(avatarSchemaStartupChecker.shouldPreferLegacyChatRoomSchema()).thenReturn(false);
+        ForumInterestPartition partition = new ForumInterestPartition();
+        partition.setId(10L);
+        partition.setPartitionCode("TECH_FUN");
+        ForumChatRoom created = new ForumChatRoom();
+        created.setId(91L);
+        created.setPartitionId(10L);
+        created.setRoomCode("ROOM_CREATED");
+        created.setRoomName("读书会");
+        when(interestPartitionService.getByCode("TECH_FUN")).thenReturn(partition);
+        when(chatRoomMapper.findByRoomCode(anyString())).thenReturn(null, null, created);
+        when(chatRoomMapper.findByRoomName("读书会")).thenReturn(null);
+        when(chatRoomMapper.insert(any(ForumChatRoom.class))).thenAnswer(invocation -> {
+            ForumChatRoom toCreate = invocation.getArgument(0);
+            toCreate.setId(91L);
+            return 1;
+        });
+        when(chatRoomMapper.findById(91L)).thenAnswer(invocation -> {
+            ForumChatRoom persisted = new ForumChatRoom();
+            persisted.setId(91L);
+            persisted.setPartitionId(10L);
+            return persisted;
+        });
+
+        ForumChatRoom room = chatRoomService.createRoom("TECH_FUN", "读书会");
+
+        ArgumentCaptor<ForumChatRoom> captor = ArgumentCaptor.forClass(ForumChatRoom.class);
+        verify(chatRoomMapper).insert(captor.capture());
+        assertTrue(captor.getValue().getRoomCode().startsWith("ROOM_"));
+        assertEquals("读书会", captor.getValue().getRoomName());
+        assertNotNull(room);
+        assertEquals(Long.valueOf(91L), room.getId());
+    }
+
+    @Test
+    void shouldRetryGeneratedRoomCodeUntilUnique() {
+        when(avatarSchemaStartupChecker.shouldPreferLegacyChatRoomSchema()).thenReturn(false);
+        ForumInterestPartition partition = new ForumInterestPartition();
+        partition.setId(10L);
+        partition.setPartitionCode("TECH_FUN");
+        ForumChatRoom collision = new ForumChatRoom();
+        collision.setRoomCode("ROOM_COLLIDE");
+        ForumChatRoom created = new ForumChatRoom();
+        created.setId(92L);
+        created.setPartitionId(10L);
+        created.setRoomCode("ROOM_CREATED");
+        when(interestPartitionService.getByCode("TECH_FUN")).thenReturn(partition);
+        when(chatRoomMapper.findByRoomCode(anyString())).thenReturn(collision, null, null, created);
+        when(chatRoomMapper.findByRoomName("摄影交流")).thenReturn(null);
+        when(chatRoomMapper.insert(any(ForumChatRoom.class))).thenAnswer(invocation -> {
+            ForumChatRoom toCreate = invocation.getArgument(0);
+            toCreate.setId(92L);
+            return 1;
+        });
+        when(chatRoomMapper.findById(92L)).thenAnswer(invocation -> {
+            ForumChatRoom persisted = new ForumChatRoom();
+            persisted.setId(92L);
+            persisted.setPartitionId(10L);
+            return persisted;
+        });
+
+        ForumChatRoom room = chatRoomService.createRoom("TECH_FUN", "摄影交流");
+
+        assertEquals(Long.valueOf(92L), room.getId());
+        verify(chatRoomMapper).insert(any(ForumChatRoom.class));
+    }
+
+    @Test
+    void shouldFailWhenGeneratedRoomCodeAlwaysCollides() {
+        when(avatarSchemaStartupChecker.shouldPreferLegacyChatRoomSchema()).thenReturn(false);
+        ForumInterestPartition partition = new ForumInterestPartition();
+        partition.setId(10L);
+        partition.setPartitionCode("TECH_FUN");
+        when(interestPartitionService.getByCode("TECH_FUN")).thenReturn(partition);
+        ForumChatRoom collision = new ForumChatRoom();
+        collision.setRoomCode("ROOM_COLLIDE");
+        when(chatRoomMapper.findByRoomCode(anyString())).thenReturn(collision);
+
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> chatRoomService.createRoom("TECH_FUN", "摄影交流"));
+
+        assertEquals("系统生成群组编码失败，请稍后重试", ex.getMessage());
+        verify(chatRoomMapper, never()).insert(any(ForumChatRoom.class));
     }
 
     @Test

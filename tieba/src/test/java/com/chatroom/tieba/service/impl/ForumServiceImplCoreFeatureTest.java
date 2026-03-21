@@ -16,6 +16,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.dao.InvalidDataAccessResourceUsageException;
 
 import java.lang.reflect.Field;
 import java.util.List;
@@ -230,6 +231,36 @@ class ForumServiceImplCoreFeatureTest {
         assertFalse(postPage.hasNext());
         assertEquals(1L, threadPage.getList().get(0).getId());
         assertEquals(2L, postPage.getList().get(0).getId());
+    }
+
+    @Test
+    void shouldFallbackToLegacyAvatarColumnWhenLoadingThreadsByUser() {
+        ThreadVO myThread = new ThreadVO();
+        myThread.setId(11L);
+        when(threadMapper.findThreadsByUserId(5L, 0, 5))
+                .thenThrow(new InvalidDataAccessResourceUsageException("Unknown column 'u.avatar_path' in 'field list'"));
+        when(threadMapper.findThreadsByUserIdByAvatar(5L, 0, 5)).thenReturn(List.of(myThread));
+        when(threadMapper.countThreadsByUserId(5L)).thenReturn(1);
+
+        PageResult<ThreadVO> threadPage = forumService.getThreadsByUser(5L, 1, 5);
+
+        assertEquals(1, threadPage.getTotalCount());
+        assertEquals(11L, threadPage.getList().get(0).getId());
+    }
+
+    @Test
+    void shouldFallbackToLegacyAvatarColumnWhenLoadingPostsByUser() {
+        PostVO myPost = new PostVO();
+        myPost.setId(12L);
+        when(postMapper.findPostsByUserId(5L, 0, 5))
+                .thenThrow(new InvalidDataAccessResourceUsageException("Unknown column 'u.avatar_path' in 'field list'"));
+        when(postMapper.findPostsByUserIdByAvatar(5L, 0, 5)).thenReturn(List.of(myPost));
+        when(postMapper.countPostsByUserId(5L)).thenReturn(1);
+
+        PageResult<PostVO> postPage = forumService.getPostsByUser(5L, 1, 5);
+
+        assertEquals(1, postPage.getTotalCount());
+        assertEquals(12L, postPage.getList().get(0).getId());
     }
 
     private void setField(String fieldName, Object value) {

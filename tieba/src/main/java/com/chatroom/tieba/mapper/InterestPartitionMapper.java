@@ -9,6 +9,7 @@ public interface InterestPartitionMapper {
     List<ForumInterestPartition> findEnabledPartitions();
     ForumInterestPartition findByCode(@Param("partitionCode") String partitionCode);
     ForumInterestPartition findByName(@Param("partitionName") String partitionName);
+    Integer findMaxSortOrder();
     int insert(ForumInterestPartition partition);
     int updateCanonicalById(ForumInterestPartition partition);
 }

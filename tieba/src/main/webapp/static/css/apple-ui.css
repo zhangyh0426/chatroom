@@ -466,6 +466,54 @@ main {
     margin-bottom: 18px;
 }
 
+.quick-create-card {
+    display: none;
+    margin-bottom: 18px;
+    padding: 20px;
+    border: 1px solid rgba(0, 113, 227, 0.14);
+    border-radius: var(--radius-md);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(242, 248, 255, 0.92));
+}
+
+.quick-create-card.is-open {
+    display: block;
+}
+
+.quick-create-head {
+    margin-bottom: 14px;
+}
+
+.quick-create-head h3 {
+    margin: 0 0 4px;
+    font-family: "Space Grotesk", "Manrope", sans-serif;
+    font-size: 1.02rem;
+}
+
+.quick-create-form {
+    display: grid;
+    gap: 10px;
+}
+
+.quick-create-actions {
+    margin-top: 4px;
+}
+
+.section-caption {
+    margin: 0;
+    color: #5b6678;
+    font-size: 0.84rem;
+}
+
+.section-caption.is-emphasis {
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: rgba(0, 113, 227, 0.08);
+}
+
+.partition-name-group.is-hidden {
+    display: none;
+}
+
 .board-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -519,6 +567,7 @@ main {
     gap: 14px;
     font-size: 0.76rem;
     color: #596170;
+    flex-wrap: wrap;
 }
 
 .board-meta strong {

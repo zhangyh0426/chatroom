@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Pattern;
 
 @Service
@@ -35,6 +36,9 @@ public class ChatRoomServiceImpl implements ChatRoomService {
     private static final String DEFAULT_GLOBAL_ROOM_NAME = "全站大厅";
     private static final String PUBLIC_ROOM_TYPE = "PUBLIC";
     private static final String ENABLED_STATUS = "ENABLED";
+    private static final String ROOM_CODE_PREFIX = "ROOM_";
+    private static final int CODE_RETRY_LIMIT = 5;
+    private static final char[] CODE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".toCharArray();
 
     @Autowired
     private ChatRoomMapper chatRoomMapper;
@@ -73,6 +77,21 @@ public class ChatRoomServiceImpl implements ChatRoomService {
             return chatRoomMapper.findVisibleLegacyRooms();
         }
         return chatRoomMapper.findVisibleRoomsByUserId(userId);
+    }
+
+    @Override
+    @Transactional
+    public ForumChatRoom createRoom(String partitionCode, String roomName) {
+        String normalizedPartitionCode = normalizePartitionCode(partitionCode);
+        interestPartitionService.getByCode(normalizedPartitionCode);
+        normalizeRoomName(roomName);
+        String generatedRoomCode = generateUniqueRoomCode();
+        createRoom(normalizedPartitionCode, generatedRoomCode, roomName);
+        ForumChatRoom created = findRoomByCodeCompat(generatedRoomCode);
+        if (created == null) {
+            throw new RuntimeException("群组创建失败，请稍后重试");
+        }
+        return created;
     }
 
     @Override
@@ -337,5 +356,25 @@ public class ChatRoomServiceImpl implements ChatRoomService {
             return chatRoomMapper.updateCanonicalByIdLegacy(room);
         }
         return chatRoomMapper.updateCanonicalById(room);
+    }
+
+    private String generateUniqueRoomCode() {
+        for (int attempt = 0; attempt < CODE_RETRY_LIMIT; attempt++) {
+            String candidate = buildGeneratedCode(ROOM_CODE_PREFIX);
+            if (findRoomByCodeCompat(candidate) == null) {
+                return candidate;
+            }
+        }
+        throw new RuntimeException("系统生成群组编码失败，请稍后重试");
+    }
+
+    private String buildGeneratedCode(String prefix) {
+        StringBuilder builder = new StringBuilder(prefix);
+        builder.append(Long.toString(System.currentTimeMillis(), 36).toUpperCase(Locale.ROOT));
+        builder.append('_');
+        for (int index = 0; index < 4; index++) {
+            builder.append(CODE_CHARS[ThreadLocalRandom.current().nextInt(CODE_CHARS.length)]);
+        }
+        return builder.toString();
     }
 }

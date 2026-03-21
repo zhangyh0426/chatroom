@@ -9,6 +9,7 @@ import java.util.List;
 public interface ChatRoomService {
     void ensureDefaultGlobalRoomReady();
     List<ChatRoomVO> getRoomList(Long userId);
+    ForumChatRoom createRoom(String partitionCode, String roomName);
     void createRoom(String partitionCode, String roomCode, String roomName);
     ForumChatRoom getRoomByCode(String roomCode);
     boolean hasJoined(Long roomId, Long userId);

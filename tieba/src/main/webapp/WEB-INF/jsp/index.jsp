@@ -1,5 +1,15 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<c:choose>
+    <c:when test="${not empty sessionScope.user}">
+        <c:set var="interestGroupsEntryUrl" value="${pageContext.request.contextPath}/chat/rooms#rooms-lobby" />
+    </c:when>
+    <c:otherwise>
+        <c:url var="interestGroupsEntryUrl" value="/auth/login">
+            <c:param name="returnTo" value="/chat/rooms#rooms-lobby" />
+        </c:url>
+    </c:otherwise>
+</c:choose>
 <!DOCTYPE html>
 <html>
 <head>
@@ -14,10 +24,10 @@
             <div class="hero-copy">
                 <p class="hero-kicker">LOCAL COMMUNITY HUB</p>
                 <h1>把兴趣变成持续发声的舞台</h1>
-                <p>用更轻盈、更沉浸的体验连接话题与人。浏览分区、进入吧内讨论，或直接进入聊天室，实时交流。</p>
+                <p>用更轻盈、更沉浸的体验连接话题与人。浏览兴趣群组、进入吧内讨论，或直接进入聊天室，实时交流。</p>
                 <div class="hero-actions">
                     <a href="${pageContext.request.contextPath}/chat/global" class="btn">进入聊天室</a>
-                    <a href="#board-zone" class="btn btn-ghost">浏览兴趣分区</a>
+                    <a href="${interestGroupsEntryUrl}" class="btn btn-ghost">浏览兴趣群组</a>
                 </div>
             </div>
 

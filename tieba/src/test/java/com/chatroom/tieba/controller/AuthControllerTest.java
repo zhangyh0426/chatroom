@@ -115,7 +115,20 @@ class AuthControllerTest {
     }
 
     @Test
-    void loginTemplateShouldKeepHiddenReturnToAndEscapedFlashMessages() throws Exception {
+    void shouldPreserveFragmentWhenRedirectingAfterSuccessfulLogin() {
+        UserSessionDTO user = new UserSessionDTO();
+        user.setId(7L);
+        when(request.getContextPath()).thenReturn("");
+        when(userService.login("alice", "secret")).thenReturn(user);
+        Model model = new ExtendedModelMap();
+
+        String view = authController.processLogin("alice", "secret", "/chat/rooms#rooms-lobby", session, request, model);
+
+        assertEquals("redirect:/chat/rooms#rooms-lobby", view);
+    }
+
+    @Test
+    void loginTemplateShouldKeepHiddenReturnToEscapedFlashMessagesAndContinueHint() throws Exception {
         String template = java.nio.file.Files.readString(
                 java.nio.file.Path.of("src/main/webapp/WEB-INF/jsp/auth/login.jsp"),
                 java.nio.charset.StandardCharsets.UTF_8);
@@ -123,6 +136,7 @@ class AuthControllerTest {
         assertTrue(template.contains("<c:out value=\"${error}\" />"));
         assertTrue(template.contains("<c:out value=\"${msg}\" />"));
         assertTrue(template.contains("name=\"returnTo\""));
+        assertTrue(template.contains("登录后将继续访问上一页。"));
         assertFalse(template.contains("<div class=\"alert alert-error\">${error}</div>"));
     }
 
@@ -136,6 +150,28 @@ class AuthControllerTest {
         assertTrue(template.contains("<c:out value=\"${success}\" />"));
         assertFalse(template.contains("${error}</div>"));
         assertFalse(template.contains("${success}</div>"));
+    }
+
+    @Test
+    void headerTemplateShouldExposeAnonymousProtectedLinksWithReturnTo() throws Exception {
+        String template = java.nio.file.Files.readString(
+                java.nio.file.Path.of("src/main/webapp/WEB-INF/jsp/common/header.jsp"),
+                java.nio.charset.StandardCharsets.UTF_8);
+
+        assertTrue(template.contains("<c:param name=\"returnTo\" value=\"/chat/rooms#rooms-lobby\" />"));
+        assertTrue(template.contains("<c:param name=\"returnTo\" value=\"/user/profile\" />"));
+        assertTrue(template.contains("<a href=\"${interestGroupsUrl}\">兴趣群组</a>"));
+    }
+
+    @Test
+    void indexTemplateShouldRouteSecondaryCtaToInterestGroups() throws Exception {
+        String template = java.nio.file.Files.readString(
+                java.nio.file.Path.of("src/main/webapp/WEB-INF/jsp/index.jsp"),
+                java.nio.charset.StandardCharsets.UTF_8);
+
+        assertTrue(template.contains("浏览兴趣群组"));
+        assertTrue(template.contains("${interestGroupsEntryUrl}"));
+        assertFalse(template.contains("href=\"#board-zone\" class=\"btn btn-ghost\">浏览兴趣分区</a>"));
     }
 
     private void setField(String fieldName, Object value) {

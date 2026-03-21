@@ -35,10 +35,11 @@ public class ChatController {
     private static final String INTEREST_PARTITION_TABLE = "forum_interest_partition";
     private static final String CHAT_ROOM_TABLE = "forum_chat_room";
     private static final String PARTITION_TABLE_MISSING_FEEDBACK = "请先执行 sql/v1.2_interest_partition_migration.sql 后重试加载";
-    private static final String PARTITION_CODE_ALREADY_EXISTS = "分区编码已存在";
-    private static final String PARTITION_NAME_ALREADY_EXISTS = "分区名称已存在";
     private static final String GLOBAL_ROOM_INIT_FAILED_FEEDBACK = "全站大厅初始化失败，已为你打开兴趣群组列表";
     private static final String GLOBAL_ROOM_REPAIR_FAILED_LIST_FEEDBACK = "全站大厅初始化失败，请稍后重试";
+    private static final String CREATE_PANEL_REDIRECT = "redirect:/chat/rooms?create=1#rooms-create";
+    private static final String PARTITION_MODE_EXISTING = "existing";
+    private static final String PARTITION_MODE_NEW = "new";
 
     @Autowired
     private ChatRoomService chatRoomService;
@@ -53,7 +54,9 @@ public class ChatController {
     private int chatHistoryLimit;
 
     @GetMapping("/rooms")
-    public String chatRooms(HttpSession session, Model model) {
+    public String chatRooms(@RequestParam(value = "create", required = false) String create,
+                            HttpSession session,
+                            Model model) {
         UserSessionDTO user = requireLogin(session);
         if (!avatarSchemaStartupChecker.probeInterestPartitionTableReady()) {
             applyRoomsLoadFailure(model, PARTITION_TABLE_MISSING_FEEDBACK, Collections.emptyList());
@@ -80,57 +83,38 @@ public class ChatController {
         model.addAttribute("rooms", rooms);
         model.addAttribute("roomsLoadFailed", false);
         model.addAttribute("partitions", partitions == null ? Collections.emptyList() : partitions);
+        populateCreateFormDefaults(model, partitions, create != null);
         return "chat/rooms";
     }
 
     @GetMapping("/rooms/manage")
-    public String manageChatRooms(HttpSession session, Model model) {
+    public String manageChatRooms(HttpSession session) {
         requireLogin(session);
-        populateManagePage(model);
-        return "chat/manage";
+        return CREATE_PANEL_REDIRECT;
     }
 
     @PostMapping("/rooms/create")
-    public String createChatRoom(@RequestParam("partitionCode") String partitionCode,
-                                 @RequestParam("partitionName") String partitionName,
-                                 @RequestParam(value = "sortOrder", required = false) Integer sortOrder,
-                                 @RequestParam("roomCode") String roomCode,
+    public String createChatRoom(@RequestParam("partitionMode") String partitionMode,
+                                 @RequestParam(value = "existingPartitionCode", required = false) String existingPartitionCode,
+                                 @RequestParam(value = "newPartitionName", required = false) String newPartitionName,
                                  @RequestParam("roomName") String roomName,
                                  HttpSession session,
                                  RedirectAttributes redirectAttributes) {
         requireLogin(session);
         try {
-            try {
-                interestPartitionService.createPartition(partitionCode, partitionName, sortOrder);
-            } catch (RuntimeException ex) {
-                if (!isPartitionAlreadyExists(ex)) {
-                    throw ex;
-                }
-            }
-            chatRoomService.createRoom(partitionCode, roomCode, roomName);
-            redirectAttributes.addFlashAttribute("success", "兴趣分区与分组创建成功");
+            String partitionCode = resolvePartitionCode(partitionMode, existingPartitionCode, newPartitionName);
+            chatRoomService.createRoom(partitionCode, roomName);
+            redirectAttributes.addFlashAttribute("success", "兴趣群组创建成功");
         } catch (RuntimeException ex) {
-            redirectAttributes.addFlashAttribute("error", ex.getMessage() == null ? "兴趣分区或分组创建失败" : ex.getMessage());
-            redirectAttributes.addFlashAttribute("createPartitionCode", partitionCode);
-            redirectAttributes.addFlashAttribute("createPartitionName", partitionName);
-            redirectAttributes.addFlashAttribute("createPartitionSortOrder", sortOrder);
-            redirectAttributes.addFlashAttribute("createRoomCode", roomCode);
+            redirectAttributes.addFlashAttribute("error", ex.getMessage() == null ? "兴趣群组创建失败" : ex.getMessage());
+            redirectAttributes.addFlashAttribute("showCreatePanel", true);
+            redirectAttributes.addFlashAttribute("createPartitionMode", normalizePartitionMode(partitionMode));
+            redirectAttributes.addFlashAttribute("createExistingPartitionCode", existingPartitionCode == null ? "" : existingPartitionCode);
+            redirectAttributes.addFlashAttribute("createNewPartitionName", newPartitionName == null ? "" : newPartitionName);
             redirectAttributes.addFlashAttribute("createRoomName", roomName);
-            return "redirect:/chat/rooms/manage";
+            return CREATE_PANEL_REDIRECT;
         }
         return "redirect:/chat/rooms";
-    }
-
-    private boolean isPartitionAlreadyExists(Throwable throwable) {
-        Throwable cursor = throwable;
-        while (cursor != null) {
-            String message = cursor.getMessage();
-            if (message != null && (message.contains(PARTITION_CODE_ALREADY_EXISTS) || message.contains(PARTITION_NAME_ALREADY_EXISTS))) {
-                return true;
-            }
-            cursor = cursor.getCause();
-        }
-        return false;
     }
 
     @GetMapping("/rooms/{roomCode}")
@@ -230,24 +214,6 @@ public class ChatController {
         model.addAttribute("partitions", partitions == null ? Collections.emptyList() : partitions);
     }
 
-    private void populateManagePage(Model model) {
-        populateCreateFormDefaults(model);
-        if (!avatarSchemaStartupChecker.probeInterestPartitionTableReady()) {
-            model.addAttribute("partitions", Collections.emptyList());
-            model.addAttribute("manageLoadFailed", true);
-            model.addAttribute("manageFeedback", PARTITION_TABLE_MISSING_FEEDBACK);
-            return;
-        }
-        try {
-            model.addAttribute("partitions", interestPartitionService.getEnabledPartitions());
-            model.addAttribute("manageLoadFailed", false);
-        } catch (RuntimeException ex) {
-            model.addAttribute("partitions", Collections.emptyList());
-            model.addAttribute("manageLoadFailed", true);
-            model.addAttribute("manageFeedback", resolveRoomsFeedback(ex));
-        }
-    }
-
     private Map<ForumInterestPartition, List<ChatRoomVO>> buildPartitionedRooms(List<ForumInterestPartition> partitions, List<ChatRoomVO> rooms) {
         List<ChatRoomVO> safeRooms = rooms == null ? Collections.emptyList() : rooms;
         Map<ForumInterestPartition, List<ChatRoomVO>> grouped = new LinkedHashMap<>();
@@ -293,21 +259,42 @@ public class ChatController {
         return grouped;
     }
 
-    private void populateCreateFormDefaults(Model model) {
-        if (!model.containsAttribute("createPartitionCode")) {
-            model.addAttribute("createPartitionCode", "");
+    private String resolvePartitionCode(String partitionMode, String existingPartitionCode, String newPartitionName) {
+        String normalizedMode = normalizePartitionMode(partitionMode);
+        if (PARTITION_MODE_NEW.equals(normalizedMode)) {
+            return interestPartitionService.createPartition(newPartitionName).getPartitionCode();
         }
-        if (!model.containsAttribute("createPartitionName")) {
-            model.addAttribute("createPartitionName", "");
+        return interestPartitionService.getByCode(existingPartitionCode).getPartitionCode();
+    }
+
+    private String normalizePartitionMode(String partitionMode) {
+        if (partitionMode == null || partitionMode.isBlank()) {
+            return PARTITION_MODE_EXISTING;
         }
-        if (!model.containsAttribute("createPartitionSortOrder")) {
-            model.addAttribute("createPartitionSortOrder", 0);
+        String normalized = partitionMode.trim().toLowerCase(Locale.ROOT);
+        if (PARTITION_MODE_NEW.equals(normalized)) {
+            return PARTITION_MODE_NEW;
         }
-        if (!model.containsAttribute("createRoomCode")) {
-            model.addAttribute("createRoomCode", "");
+        return PARTITION_MODE_EXISTING;
+    }
+
+    private void populateCreateFormDefaults(Model model, List<ForumInterestPartition> partitions, boolean requestedOpen) {
+        List<ForumInterestPartition> safePartitions = partitions == null ? Collections.emptyList() : partitions;
+        boolean hasPartitions = !safePartitions.isEmpty();
+        if (!model.containsAttribute("createPartitionMode")) {
+            model.addAttribute("createPartitionMode", hasPartitions ? PARTITION_MODE_EXISTING : PARTITION_MODE_NEW);
+        }
+        if (!model.containsAttribute("createExistingPartitionCode")) {
+            model.addAttribute("createExistingPartitionCode", hasPartitions ? safePartitions.get(0).getPartitionCode() : "");
+        }
+        if (!model.containsAttribute("createNewPartitionName")) {
+            model.addAttribute("createNewPartitionName", "");
         }
         if (!model.containsAttribute("createRoomName")) {
             model.addAttribute("createRoomName", "");
+        }
+        if (!model.containsAttribute("showCreatePanel")) {
+            model.addAttribute("showCreatePanel", requestedOpen || !hasPartitions);
         }
     }
 }

@@ -352,12 +352,15 @@ public class ForumServiceImpl implements ForumService {
     }
 
     private boolean isUnknownColumn(Throwable ex, String columnName) {
-        String lookup = "unknown column '" + columnName + "'";
+        String normalizedColumnName = columnName.toLowerCase();
         Throwable current = ex;
         while (current != null) {
             String message = current.getMessage();
-            if (message != null && message.toLowerCase().contains(lookup)) {
-                return true;
+            if (message != null) {
+                String lowerMessage = message.toLowerCase();
+                if (lowerMessage.contains("unknown column") && lowerMessage.contains(normalizedColumnName)) {
+                    return true;
+                }
             }
             current = current.getCause();
         }

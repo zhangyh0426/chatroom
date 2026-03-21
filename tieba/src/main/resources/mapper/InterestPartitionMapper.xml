@@ -23,6 +23,12 @@
         LIMIT 1
     </select>
 
+    <select id="findMaxSortOrder" resultType="java.lang.Integer">
+        SELECT MAX(sort_order)
+        FROM forum_interest_partition
+        WHERE status = 'ENABLED'
+    </select>
+
     <insert id="insert" parameterType="com.chatroom.tieba.entity.ForumInterestPartition" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO forum_interest_partition (partition_code, partition_name, sort_order, status)
         VALUES (#{partitionCode}, #{partitionName}, #{sortOrder}, #{status})

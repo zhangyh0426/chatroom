@@ -25,6 +25,9 @@
             <c:if test="${not empty msg}">
                 <div class="alert alert-success"><c:out value="${msg}" /></div>
             </c:if>
+            <c:if test="${not empty returnTo}">
+                <div class="alert alert-info">登录后将继续访问上一页。</div>
+            </c:if>
 
             <form action="${pageContext.request.contextPath}/auth/login" method="post">
                 <c:if test="${not empty returnTo}">

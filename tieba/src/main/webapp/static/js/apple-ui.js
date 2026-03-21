@@ -366,6 +366,62 @@
         }
     }
 
+    function initRoomCreatePanel() {
+        var root = document.querySelector('[data-room-create-root]');
+        if (!root) return;
+
+        var toggles = document.querySelectorAll('[data-room-create-toggle][data-target="rooms-create"]');
+        var picker = root.querySelector('[data-partition-picker]');
+        var modeInput = root.querySelector('[data-partition-mode]');
+        var newPartitionGroup = root.querySelector('[data-new-partition-group]');
+        var newPartitionInput = root.querySelector('[data-new-partition-input]');
+
+        function setOpen(nextOpen) {
+            root.classList.toggle('is-open', nextOpen);
+            root.setAttribute('data-open', nextOpen ? 'true' : 'false');
+        }
+
+        function syncPartitionFields() {
+            if (!modeInput) return;
+
+            var hasPicker = !!picker;
+            var nextMode = 'new';
+            if (hasPicker && picker.value !== '__NEW__') {
+                nextMode = 'existing';
+            }
+            modeInput.value = nextMode;
+
+            if (newPartitionGroup) {
+                newPartitionGroup.classList.toggle('is-hidden', nextMode !== 'new');
+            }
+            if (newPartitionInput) {
+                newPartitionInput.disabled = nextMode !== 'new';
+                newPartitionInput.required = nextMode === 'new';
+            }
+        }
+
+        toggles.forEach(function(toggle) {
+            toggle.addEventListener('click', function() {
+                setOpen(!root.classList.contains('is-open'));
+            });
+        });
+
+        if (picker) {
+            picker.addEventListener('change', function() {
+                syncPartitionFields();
+                if (picker.value === '__NEW__') {
+                    setOpen(true);
+                    if (newPartitionInput) {
+                        window.setTimeout(function() { newPartitionInput.focus(); }, 0);
+                    }
+                }
+            });
+        }
+
+        setOpen(root.getAttribute('data-open') === 'true');
+        syncPartitionFields();
+    }
+
     function onReady(fn) {
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', fn);
@@ -386,5 +442,6 @@
         initHeaderCompact();
         initButtonsRipple();
         initCountUp();
+        initRoomCreatePanel();
     });
 })();
