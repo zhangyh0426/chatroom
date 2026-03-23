@@ -29,10 +29,10 @@ public interface ForumService {
     Long createThread(Integer boardId, Long userId, String title, String content);
     
     // 核心交互：回帖（楼层盖楼）
-    void createPost(Long threadId, Long userId, String content);
+    Long createPost(Long threadId, Long userId, String content);
     
     // 核心交互：楼中楼评论小楼层
-    void createReply(Long threadId, Long postId, Long userId, Long replyToUserId, String content);
+    Long createReply(Long threadId, Long postId, Long userId, Long replyToUserId, String content);
 
     boolean deleteThreadByAuthor(Long threadId, Long userId);
     ForumLikeLog likeThread(Long threadId, Long userId);

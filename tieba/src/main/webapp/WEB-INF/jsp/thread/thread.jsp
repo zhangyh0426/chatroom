@@ -82,6 +82,9 @@
     <jsp:include page="../common/header.jsp" />
 
     <main class="container">
+        <c:url var="loginUrl" value="/auth/login">
+            <c:param name="returnTo" value="/thread/${thread.id}" />
+        </c:url>
         <div class="crumb-row" data-reveal>
             <a href="${pageContext.request.contextPath}/board/${boardId}">返回吧内列表</a>
         </div>
@@ -103,7 +106,7 @@
                         </c:if>
                     </c:when>
                     <c:otherwise>
-                        <a href="${pageContext.request.contextPath}/auth/login" class="btn btn-sm btn-ghost">登录后点赞</a>
+                        <a href="${loginUrl}" class="btn btn-sm btn-ghost">登录后点赞</a>
                     </c:otherwise>
                 </c:choose>
                 <span id="like-feedback" class="thread-meta"></span>
@@ -112,7 +115,7 @@
         </section>
 
         <c:forEach items="${posts}" var="post">
-            <article class="post-layout" data-reveal>
+            <article class="post-layout" id="post-${post.id}" data-reveal>
                 <aside class="post-author interactive-card">
                     <div class="avatar-ring">
                         <c:choose>
@@ -175,7 +178,7 @@
                                     </form>
                                 </c:when>
                                 <c:otherwise>
-                                    <div class="reply-empty">请先登录再参与回复。</div>
+                                    <div class="reply-empty"><a href="${loginUrl}">请先登录</a>再参与回复。</div>
                                 </c:otherwise>
                             </c:choose>
                         </div>
@@ -198,7 +201,7 @@
                 </c:when>
                 <c:otherwise>
                     <div class="login-reminder">
-                        需要先 <a href="${pageContext.request.contextPath}/auth/login">登录</a> 才能回复。
+                        需要先 <a href="${loginUrl}">登录</a> 才能回复。
                     </div>
                 </c:otherwise>
             </c:choose>

@@ -1,0 +1,15 @@
+# Tasks
+- [x] Task 1: 优化异常处理中的未登录重定向逻辑
+  - [x] SubTask 1.1: 在 `GlobalExceptionHandler` 中修改包含 "请先登录" 的异常处理逻辑，从请求头获取 `Referer`，拼接为 `returnTo` 参数后重定向。
+- [x] Task 2: 完善未登录界面的主动引导链接
+  - [x] SubTask 2.1: 在 `board.jsp` 中的未登录提示处，将 `<a href=".../auth/login">` 修改为携带 `returnTo` 参数的链接。
+  - [x] SubTask 2.2: 在 `thread.jsp` 中的未登录提示处，同样增加带 `returnTo` 参数的登录链接。
+- [x] Task 3: 改造发帖/回帖服务使其返回主键 ID
+  - [x] SubTask 3.1: 在 `ForumService` 接口中，将 `createPost` 的返回值改为 `Long`。
+  - [x] SubTask 3.2: 在 `ForumServiceImpl` 中，修改 `createPost` 的实现，在 `postMapper.insert(post)` 之后返回 `post.getId()`。
+  - [x] SubTask 3.3: 在 `ForumService` 接口中，将 `createReply` 的返回值改为 `Long`。
+  - [x] SubTask 3.4: 在 `ForumServiceImpl` 中，修改 `createReply` 的实现，在 `replyMapper.insert(reply)` 之后返回 `reply.getId()`。
+- [x] Task 4: 实现回帖后的自动定位（锚点）
+  - [x] SubTask 4.1: 在 `ThreadController` 中，修改 `createReply` 重定向地址，附加 `#post-{postId}`。
+  - [x] SubTask 4.2: 在 `ThreadController` 中，修改 `createSubReply` 重定向地址，附加 `#post-{postId}`（定位到所属楼层）。
+  - [x] SubTask 4.3: 在 `thread.jsp` 中，为 `<article class="post-layout">` 增加 `id="post-${post.id}"` 属性。

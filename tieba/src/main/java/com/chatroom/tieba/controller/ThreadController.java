@@ -36,8 +36,8 @@ public class ThreadController {
                               @RequestParam("content") String content,
                               HttpSession session) {
         UserSessionDTO user = requireLogin(session);
-        forumService.createPost(threadId, user.getId(), content);
-        return "redirect:/thread/" + threadId; // 简单重定向，默认跳回原帖首页面
+        Long postId = forumService.createPost(threadId, user.getId(), content);
+        return "redirect:/thread/" + threadId + "#post-" + postId;
     }
     
     @PostMapping("/subreply")
@@ -48,7 +48,7 @@ public class ThreadController {
                                  HttpSession session) {
         UserSessionDTO user = requireLogin(session);
         forumService.createReply(threadId, postId, user.getId(), replyToUserId, content);
-        return "redirect:/thread/" + threadId;
+        return "redirect:/thread/" + threadId + "#post-" + postId;
     }
 
     @PostMapping("/api/{threadId}/like")

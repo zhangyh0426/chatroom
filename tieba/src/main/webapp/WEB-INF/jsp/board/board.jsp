@@ -134,7 +134,10 @@
                 </c:when>
                 <c:otherwise>
                     <div class="login-reminder">
-                        需要先 <a href="${pageContext.request.contextPath}/auth/login">登录</a> 才能发帖。
+                        <c:url var="loginUrl" value="/auth/login">
+                            <c:param name="returnTo" value="/board/${board.id}" />
+                        </c:url>
+                        需要先 <a href="${loginUrl}">登录</a> 才能发帖。
                     </div>
                 </c:otherwise>
             </c:choose>

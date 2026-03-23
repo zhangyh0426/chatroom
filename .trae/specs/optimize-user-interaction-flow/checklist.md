@@ -1,0 +1,7 @@
+- [x] 触发 `GlobalExceptionHandler` 的 "请先登录" 异常时，重定向的 URL 包含了正确的 `returnTo`（由 Referer 提取）。
+- [x] `board.jsp` 页面发帖区的登录引导链接包含正确的 `returnTo` 参数（指向当前吧）。
+- [x] `thread.jsp` 页面底部回帖区的登录引导链接包含正确的 `returnTo` 参数（指向当前帖子）。
+- [x] `ForumService` 接口及其实现类中的 `createPost` 与 `createReply` 成功返回了 `Long` 类型的主键 ID。
+- [x] 在帖子内回复主贴成功后，重定向跳转至 `/thread/{threadId}#post-{postId}` 并且页面正确滚动。
+- [x] 在帖子内进行楼中楼回复成功后，重定向跳转至 `/thread/{threadId}#post-{postId}` 并且页面正确滚动。
+- [x] `thread.jsp` 中的回帖卡片具备 `id="post-{postId}"` 结构，能够被浏览器锚点正确解析定位。

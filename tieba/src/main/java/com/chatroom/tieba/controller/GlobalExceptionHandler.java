@@ -15,6 +15,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import java.net.URI;
+import java.net.URLEncoder;
+
 @ControllerAdvice(annotations = Controller.class)
 public class GlobalExceptionHandler {
 
@@ -35,7 +38,29 @@ public class GlobalExceptionHandler {
             return payload;
         }
         if (ex.getMessage() != null && ex.getMessage().contains("请先登录")) {
-            response.sendRedirect(request.getContextPath() + "/auth/login");
+            String redirectUrl = request.getContextPath() + "/auth/login";
+            String referer = request.getHeader("Referer");
+            if (referer != null && !referer.isBlank()) {
+                try {
+                    URI refererUri = URI.create(referer);
+                    String path = refererUri.getRawPath();
+                    String query = refererUri.getRawQuery();
+                    String contextPath = request.getContextPath();
+                    if (path != null) {
+                        if (contextPath != null && !contextPath.isEmpty() && path.startsWith(contextPath)) {
+                            path = path.substring(contextPath.length());
+                        }
+                        if (path.isEmpty()) path = "/";
+                        String returnTo = path;
+                        if (query != null && !query.isEmpty()) {
+                            returnTo += "?" + query;
+                        }
+                        redirectUrl += "?returnTo=" + URLEncoder.encode(returnTo, StandardCharsets.UTF_8);
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+            response.sendRedirect(redirectUrl);
             return null;
         }
         redirectAttributes.addFlashAttribute("error", ex.getMessage());

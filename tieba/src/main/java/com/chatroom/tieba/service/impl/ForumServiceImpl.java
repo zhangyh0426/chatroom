@@ -131,7 +131,7 @@ public class ForumServiceImpl implements ForumService {
 
     @Override
     @Transactional
-    public void createPost(Long threadId, Long userId, String content) {
+    public Long createPost(Long threadId, Long userId, String content) {
         Integer maxFloor = postMapper.getMaxFloor(threadId);
         int nextFloor = (maxFloor == null ? 1 : maxFloor) + 1;
 
@@ -149,11 +149,12 @@ public class ForumServiceImpl implements ForumService {
         if (thread != null) {
             boardMapper.increasePostCount(thread.getBoardId());
         }
+        return post.getId();
     }
 
     @Override
     @Transactional
-    public void createReply(Long threadId, Long postId, Long userId, Long replyToUserId, String content) {
+    public Long createReply(Long threadId, Long postId, Long userId, Long replyToUserId, String content) {
         ForumReply reply = new ForumReply();
         reply.setThreadId(threadId);
         reply.setPostId(postId);
@@ -169,6 +170,7 @@ public class ForumServiceImpl implements ForumService {
         if (thread != null) {
             boardMapper.increasePostCount(thread.getBoardId());
         }
+        return reply.getId();
     }
 
     @Override
