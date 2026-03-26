@@ -38,4 +38,13 @@
         UPDATE forum_user_profile SET avatar = #{avatarPath} WHERE user_id = #{userId}
     </update>
 
+    <select id="findByNicknames" resultType="UserProfile">
+        SELECT user_id, nickname, avatar_path, bio, last_login_ip, last_login_at
+        FROM forum_user_profile
+        WHERE nickname IN
+        <foreach collection="nicknames" item="nickname" open="(" separator="," close=")">
+            #{nickname}
+        </foreach>
+    </select>
+
 </mapper>

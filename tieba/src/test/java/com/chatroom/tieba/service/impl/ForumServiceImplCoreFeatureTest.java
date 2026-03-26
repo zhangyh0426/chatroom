@@ -1,18 +1,26 @@
 package com.chatroom.tieba.service.impl;
 
 import com.chatroom.tieba.entity.ForumLikeLog;
+import com.chatroom.tieba.entity.ForumBoard;
+import com.chatroom.tieba.entity.ForumPost;
 import com.chatroom.tieba.entity.ForumThread;
+import com.chatroom.tieba.mapper.TagMapper;
+import com.chatroom.tieba.mapper.ThreadTagMapper;
 import com.chatroom.tieba.mapper.BoardMapper;
 import com.chatroom.tieba.mapper.LikeLogMapper;
 import com.chatroom.tieba.mapper.PostMapper;
 import com.chatroom.tieba.mapper.ReplyMapper;
 import com.chatroom.tieba.mapper.ThreadMapper;
+import com.chatroom.tieba.mapper.ThreadImageMapper;
+import com.chatroom.tieba.service.NotificationService;
 import com.chatroom.tieba.vo.PageResult;
 import com.chatroom.tieba.vo.PostVO;
+import com.chatroom.tieba.vo.ThreadImageVO;
 import com.chatroom.tieba.vo.ThreadVO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DuplicateKeyException;
@@ -28,7 +36,10 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -42,6 +53,9 @@ class ForumServiceImplCoreFeatureTest {
     private ThreadMapper threadMapper;
 
     @Mock
+    private ThreadImageMapper threadImageMapper;
+
+    @Mock
     private PostMapper postMapper;
 
     @Mock
@@ -50,6 +64,15 @@ class ForumServiceImplCoreFeatureTest {
     @Mock
     private LikeLogMapper likeLogMapper;
 
+    @Mock
+    private TagMapper tagMapper;
+
+    @Mock
+    private ThreadTagMapper threadTagMapper;
+
+    @Mock
+    private NotificationService notificationService;
+
     private ForumServiceImpl forumService;
 
     @BeforeEach
@@ -57,9 +80,13 @@ class ForumServiceImplCoreFeatureTest {
         forumService = new ForumServiceImpl();
         setField("boardMapper", boardMapper);
         setField("threadMapper", threadMapper);
+        setField("threadImageMapper", threadImageMapper);
         setField("postMapper", postMapper);
         setField("replyMapper", replyMapper);
         setField("likeLogMapper", likeLogMapper);
+        setField("tagMapper", tagMapper);
+        setField("threadTagMapper", threadTagMapper);
+        setField("notificationService", notificationService);
     }
 
     @Test
@@ -92,6 +119,41 @@ class ForumServiceImplCoreFeatureTest {
     }
 
     @Test
+    void shouldRejectCreateThreadWhenBoardUnavailable() {
+        when(boardMapper.findBoardById(3)).thenReturn(null);
+
+        RuntimeException exception = assertThrows(RuntimeException.class,
+                () -> forumService.createThread(3, 9L, "标题", "正文"));
+
+        assertEquals("版块不存在或已不可用", exception.getMessage());
+        verify(threadMapper, never()).insert(any(ForumThread.class));
+    }
+
+    @Test
+    void shouldTrimTitleAndContentWhenCreatingThread() {
+        ForumBoard board = new ForumBoard();
+        board.setId(3);
+        when(boardMapper.findBoardById(3)).thenReturn(board);
+        doAnswer(invocation -> {
+            ForumThread thread = invocation.getArgument(0);
+            thread.setId(321L);
+            return 1;
+        }).when(threadMapper).insert(any(ForumThread.class));
+
+        forumService.createThread(3, 9L, "  Java  ", "  内容  ");
+
+        ArgumentCaptor<ForumThread> threadCaptor = ArgumentCaptor.forClass(ForumThread.class);
+        verify(threadMapper).insert(threadCaptor.capture());
+        assertEquals("Java", threadCaptor.getValue().getTitle());
+        assertEquals("内容", threadCaptor.getValue().getContent());
+        assertEquals("DISCUSSION", threadCaptor.getValue().getThreadType());
+        verify(threadMapper).insert(any(ForumThread.class));
+        verify(postMapper).insert(any(ForumPost.class));
+        verify(boardMapper).increaseThreadCount(3);
+        verify(notificationService).createSystemNotification(eq(9L), eq("帖子发布成功"), contains("Java"), eq("THREAD"), eq(321L), eq("/thread/321"));
+    }
+
+    @Test
     void shouldPreventDuplicateThreadLike() {
         ThreadVO thread = new ThreadVO();
         thread.setId(100L);
@@ -109,6 +171,8 @@ class ForumServiceImplCoreFeatureTest {
     void shouldLikeThreadOnceWhenNoLikeLogExists() {
         ThreadVO thread = new ThreadVO();
         thread.setId(100L);
+        thread.setUserId(88L);
+        thread.setTitle("Spring 分享");
         when(threadMapper.findById(100L)).thenReturn(thread);
         when(likeLogMapper.findByUserAndTarget(9L, 100L, "THREAD")).thenReturn(null);
 
@@ -117,6 +181,7 @@ class ForumServiceImplCoreFeatureTest {
         assertNotNull(likeLog);
         verify(likeLogMapper).insert(any(ForumLikeLog.class));
         verify(threadMapper).increaseLikeCount(100L);
+        verify(notificationService).createInteractionNotification(eq(88L), eq(9L), eq("LIKE"), eq("你的帖子收到了新点赞"), contains("Spring"), eq("THREAD"), eq(100L), eq("/thread/100"));
     }
 
     @Test
@@ -261,6 +326,16 @@ class ForumServiceImplCoreFeatureTest {
 
         assertEquals(1, postPage.getTotalCount());
         assertEquals(12L, postPage.getList().get(0).getId());
+    }
+
+    @Test
+    void shouldReturnEmptyThreadImagesWhenImageTableMissing() {
+        when(threadImageMapper.findByThreadId(11L))
+                .thenThrow(new InvalidDataAccessResourceUsageException("Table 'tieba.forum_thread_image' doesn't exist"));
+
+        List<ThreadImageVO> images = forumService.getThreadImages(11L);
+
+        assertTrue(images.isEmpty());
     }
 
     private void setField(String fieldName, Object value) {

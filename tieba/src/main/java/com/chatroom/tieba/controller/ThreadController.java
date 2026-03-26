@@ -4,6 +4,7 @@ import com.chatroom.tieba.dto.UserSessionDTO;
 import com.chatroom.tieba.entity.ForumLikeLog;
 import com.chatroom.tieba.service.ForumService;
 import com.chatroom.tieba.vo.PostVO;
+import com.chatroom.tieba.vo.ThreadImageVO;
 import com.chatroom.tieba.vo.ThreadVO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -22,12 +23,18 @@ public class ThreadController {
     private ForumService forumService;
 
     @GetMapping("/{threadId}")
-    public String viewThread(@PathVariable("threadId") Long threadId, Model model) {
+    public String viewThread(@PathVariable("threadId") Long threadId,
+                             @RequestParam(value = "fromProfile", defaultValue = "false") boolean fromProfile,
+                             Model model) {
         ThreadVO thread = forumService.getThreadWithViewCountInc(threadId);
         List<PostVO> posts = forumService.getPostsWithReplies(threadId);
+        List<ThreadImageVO> threadImages = forumService.getThreadImages(threadId);
+        thread.setImages(threadImages);
         model.addAttribute("thread", thread);
         model.addAttribute("posts", posts);
+        model.addAttribute("threadImages", threadImages);
         model.addAttribute("boardId", thread.getBoardId());
+        model.addAttribute("fromProfile", fromProfile);
         return "thread/thread";
     }
 

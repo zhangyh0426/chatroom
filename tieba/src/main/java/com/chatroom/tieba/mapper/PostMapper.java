@@ -7,6 +7,7 @@ import java.util.List;
 
 public interface PostMapper {
     int insert(ForumPost post);
+    ForumPost findById(@Param("id") Long id);
     List<PostVO> findPostsByThreadId(@Param("threadId") Long threadId);
     List<PostVO> findPostsByThreadIdByAvatar(@Param("threadId") Long threadId);
     Integer getMaxFloor(@Param("threadId") Long threadId);

@@ -85,18 +85,36 @@
         <c:url var="loginUrl" value="/auth/login">
             <c:param name="returnTo" value="/thread/${thread.id}" />
         </c:url>
+        <c:url var="myThreadsUrl" value="/user/profile">
+            <c:param name="myThreadPage" value="1" />
+            <c:param name="myReplyPage" value="1" />
+            <c:param name="highlightThreadId" value="${thread.id}" />
+        </c:url>
         <div class="crumb-row" data-reveal>
             <a href="${pageContext.request.contextPath}/board/${boardId}">返回吧内列表</a>
+            <c:if test="${fromProfile}">
+                <a href="${pageContext.request.contextPath}${myThreadsUrl}#my-thread-${thread.id}">返回我发的帖子</a>
+            </c:if>
         </div>
 
         <section class="panel thread-hero" data-reveal>
             <h1><c:out value="${thread.title}" /></h1>
+            <div class="thread-chip-row" style="margin-top:12px;">
+                <span class="pill"><c:out value="${thread.threadTypeLabel}" /></span>
+                <c:forEach items="${thread.tagNames}" var="tagName">
+                    <span class="mini-tag">#<c:out value="${tagName}" /></span>
+                </c:forEach>
+            </div>
+            <c:if test="${fromProfile}">
+                <div class="alert alert-success">发帖成功，已同步到“我发的帖子”，可随时回流查看。</div>
+            </c:if>
             <div class="thread-head-meta">
                 浏览 <strong data-count="${thread.viewCount}">${thread.viewCount}</strong>
                 · 回复 <strong data-count="${thread.replyCount}">${thread.replyCount}</strong>
                 · 点赞 <strong id="thread-like-count" data-count="${thread.likeCount == null ? 0 : thread.likeCount}">${thread.likeCount == null ? 0 : thread.likeCount}</strong>
                 · 发布时间 <fmt:formatDate value="${thread.createdAt}" pattern="yyyy-MM-dd HH:mm"/>
             </div>
+            <div class="thread-summary" style="margin-top:14px;"><c:out value="${thread.content}" /></div>
             <div style="margin-top:12px;display:flex;gap:12px;align-items:center;">
                 <c:choose>
                     <c:when test="${not empty sessionScope.user}">
@@ -113,6 +131,26 @@
                 <span id="delete-feedback" class="thread-meta"></span>
             </div>
         </section>
+
+        <c:if test="${not empty threadImages}">
+            <section class="panel thread-image-gallery" data-reveal>
+                <header class="section-head">
+                    <h2>帖子图片</h2>
+                    <span class="pill">图文模式</span>
+                </header>
+                <div class="thread-image-grid">
+                    <c:forEach items="${threadImages}" var="image">
+                        <article class="thread-image-card interactive-card">
+                            <img src="${pageContext.request.contextPath}${image.filePath}" alt="<c:out value='${image.originalName}' />">
+                            <div class="thread-image-meta">
+                                <strong><c:out value="${empty image.originalName ? '未命名图片' : image.originalName}" /></strong>
+                                <span>序号 ${image.sortNo == null ? 0 : image.sortNo}</span>
+                            </div>
+                        </article>
+                    </c:forEach>
+                </div>
+            </section>
+        </c:if>
 
         <c:forEach items="${posts}" var="post">
             <article class="post-layout" id="post-${post.id}" data-reveal>

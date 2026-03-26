@@ -7,6 +7,13 @@
         VALUES(#{threadId}, #{userId}, #{floorNo}, #{content}, 1, NOW())
     </insert>
 
+    <select id="findById" resultType="com.chatroom.tieba.entity.ForumPost">
+        SELECT *
+        FROM forum_post
+        WHERE id = #{id}
+        LIMIT 1
+    </select>
+
     <select id="findPostsByThreadId" resultType="com.chatroom.tieba.vo.PostVO">
         SELECT p.*, u.nickname as authorName,
                u.avatar_path as avatar_path, u.avatar_path as authorAvatar
@@ -71,7 +78,7 @@
         FROM forum_post p
         LEFT JOIN forum_user_profile u ON p.user_id = u.user_id
         LEFT JOIN forum_thread t ON p.thread_id = t.id
-        WHERE p.user_id = #{userId} AND p.status = 1 AND t.status = 1
+        WHERE p.user_id = #{userId} AND p.status = 1 AND t.status = 1 AND p.floor_no > 1
         ORDER BY p.created_at DESC
         LIMIT #{offset}, #{size}
     </select>
@@ -83,7 +90,7 @@
         FROM forum_post p
         LEFT JOIN forum_user_profile u ON p.user_id = u.user_id
         LEFT JOIN forum_thread t ON p.thread_id = t.id
-        WHERE p.user_id = #{userId} AND p.status = 1 AND t.status = 1
+        WHERE p.user_id = #{userId} AND p.status = 1 AND t.status = 1 AND p.floor_no > 1
         ORDER BY p.created_at DESC
         LIMIT #{offset}, #{size}
     </select>
@@ -92,7 +99,7 @@
         SELECT COUNT(*)
         FROM forum_post p
         INNER JOIN forum_thread t ON p.thread_id = t.id
-        WHERE p.user_id = #{userId} AND p.status = 1 AND t.status = 1
+        WHERE p.user_id = #{userId} AND p.status = 1 AND t.status = 1 AND p.floor_no > 1
     </select>
 
 </mapper>

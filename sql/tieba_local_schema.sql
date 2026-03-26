@@ -10,10 +10,14 @@ USE `tieba_local`;
 DROP TABLE IF EXISTS `forum_chat_ban`;
 DROP TABLE IF EXISTS `forum_chat_message`;
 DROP TABLE IF EXISTS `forum_chat_room`;
+DROP TABLE IF EXISTS `forum_notification`;
+DROP TABLE IF EXISTS `forum_thread_tag`;
+DROP TABLE IF EXISTS `forum_tag`;
 DROP TABLE IF EXISTS `forum_moderation_log`;
 DROP TABLE IF EXISTS `forum_announcement`;
 DROP TABLE IF EXISTS `forum_reply`;
 DROP TABLE IF EXISTS `forum_post`;
+DROP TABLE IF EXISTS `forum_thread_image`;
 DROP TABLE IF EXISTS `forum_thread`;
 DROP TABLE IF EXISTS `forum_board`;
 DROP TABLE IF EXISTS `forum_category`;
@@ -118,8 +122,11 @@ CREATE TABLE `forum_thread` (
   `user_id` bigint unsigned NOT NULL,
   `title` varchar(200) NOT NULL,
   `content` text NOT NULL,
+  `thread_type` varchar(20) NOT NULL DEFAULT 'DISCUSSION',
+  `cover_image_path` varchar(255) DEFAULT NULL,
   `view_count` int NOT NULL DEFAULT 0,
   `reply_count` int NOT NULL DEFAULT 0,
+  `like_count` int NOT NULL DEFAULT 0,
   `is_top` tinyint(1) NOT NULL DEFAULT 0,
   `is_essence` tinyint(1) NOT NULL DEFAULT 0,
   `status` tinyint(1) NOT NULL DEFAULT 1 COMMENT '1:正常,0:删除',
@@ -134,12 +141,51 @@ CREATE TABLE `forum_thread` (
   CONSTRAINT `fk_forum_thread_user_id` FOREIGN KEY (`user_id`) REFERENCES `forum_user_account` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE `forum_thread_image` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `thread_id` bigint unsigned NOT NULL,
+  `sort_no` int NOT NULL DEFAULT 1,
+  `file_path` varchar(255) NOT NULL,
+  `original_name` varchar(255) DEFAULT NULL,
+  `content_type` varchar(100) DEFAULT NULL,
+  `file_size` bigint DEFAULT 0,
+  `status` tinyint(1) NOT NULL DEFAULT 1 COMMENT '1:正常,0:删除',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_forum_thread_image_thread_status_sort` (`thread_id`, `status`, `sort_no`),
+  CONSTRAINT `fk_forum_thread_image_thread_id` FOREIGN KEY (`thread_id`) REFERENCES `forum_thread` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `forum_tag` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(30) NOT NULL,
+  `normalized_name` varchar(30) NOT NULL,
+  `status` tinyint(1) NOT NULL DEFAULT 1 COMMENT '1:正常,0:停用',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_forum_tag_name` (`name`),
+  UNIQUE KEY `uk_forum_tag_normalized_name` (`normalized_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `forum_thread_tag` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `thread_id` bigint unsigned NOT NULL,
+  `tag_id` bigint unsigned NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_forum_thread_tag_thread_tag` (`thread_id`, `tag_id`),
+  KEY `idx_forum_thread_tag_tag_id` (`tag_id`),
+  CONSTRAINT `fk_forum_thread_tag_thread_id` FOREIGN KEY (`thread_id`) REFERENCES `forum_thread` (`id`),
+  CONSTRAINT `fk_forum_thread_tag_tag_id` FOREIGN KEY (`tag_id`) REFERENCES `forum_tag` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE `forum_post` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `thread_id` bigint unsigned NOT NULL,
   `user_id` bigint unsigned NOT NULL,
   `floor_no` int NOT NULL,
   `content` text NOT NULL,
+  `like_count` int NOT NULL DEFAULT 0,
   `status` tinyint(1) NOT NULL DEFAULT 1 COMMENT '1:正常,0:删除',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -148,6 +194,25 @@ CREATE TABLE `forum_post` (
   KEY `idx_forum_post_user_id` (`user_id`),
   CONSTRAINT `fk_forum_post_thread_id` FOREIGN KEY (`thread_id`) REFERENCES `forum_thread` (`id`),
   CONSTRAINT `fk_forum_post_user_id` FOREIGN KEY (`user_id`) REFERENCES `forum_user_account` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `forum_notification` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` bigint unsigned NOT NULL,
+  `actor_user_id` bigint unsigned DEFAULT NULL,
+  `notification_type` varchar(20) NOT NULL,
+  `title` varchar(120) NOT NULL,
+  `content` varchar(255) DEFAULT NULL,
+  `target_type` varchar(20) DEFAULT NULL,
+  `target_id` bigint unsigned DEFAULT NULL,
+  `target_url` varchar(255) DEFAULT NULL,
+  `is_read` tinyint(1) NOT NULL DEFAULT 0 COMMENT '0:未读,1:已读',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_forum_notification_user_read_created` (`user_id`, `is_read`, `created_at`),
+  KEY `idx_forum_notification_actor_user_id` (`actor_user_id`),
+  CONSTRAINT `fk_forum_notification_user_id` FOREIGN KEY (`user_id`) REFERENCES `forum_user_account` (`id`),
+  CONSTRAINT `fk_forum_notification_actor_user_id` FOREIGN KEY (`actor_user_id`) REFERENCES `forum_user_account` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE `forum_reply` (

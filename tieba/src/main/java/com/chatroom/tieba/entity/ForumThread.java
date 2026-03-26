@@ -7,6 +7,8 @@ public class ForumThread {
     private Long userId;
     private String title;
     private String content;
+    private String threadType;
+    private String coverImagePath;
     private Integer viewCount;
     private Integer replyCount;
     private Integer likeCount;
@@ -27,6 +29,10 @@ public class ForumThread {
     public void setTitle(String title) { this.title = title; }
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }
+    public String getThreadType() { return threadType; }
+    public void setThreadType(String threadType) { this.threadType = threadType; }
+    public String getCoverImagePath() { return coverImagePath; }
+    public void setCoverImagePath(String coverImagePath) { this.coverImagePath = coverImagePath; }
     public Integer getViewCount() { return viewCount; }
     public void setViewCount(Integer viewCount) { this.viewCount = viewCount; }
     public Integer getReplyCount() { return replyCount; }

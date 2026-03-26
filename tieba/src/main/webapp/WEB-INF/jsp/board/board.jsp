@@ -11,6 +11,10 @@
     <jsp:include page="../common/header.jsp" />
 
     <main class="container">
+        <c:url var="createThreadUrl" value="/board/post/thread">
+            <c:param name="boardId" value="${board.id}" />
+            <c:param name="entrySource" value="board" />
+        </c:url>
         <div class="crumb-row" data-reveal>
             <a href="${pageContext.request.contextPath}/">返回首页</a>
         </div>
@@ -31,15 +35,22 @@
         <section class="panel thread-stream" data-reveal>
             <header class="section-head">
                 <h2>帖子流</h2>
-                <c:if test="${not empty sessionScope.user}">
-                    <a href="#composer" class="btn btn-sm btn-ghost">发新帖</a>
-                </c:if>
+                <a href="${createThreadUrl}" class="btn btn-sm btn-ghost">去发帖</a>
             </header>
             <form action="${pageContext.request.contextPath}/board/${board.id}" method="get" class="form-group" style="display:flex;gap:10px;align-items:center;margin-bottom:16px;">
                 <input type="hidden" name="size" value="${pageResult.pageSize}">
                 <input type="text" name="keyword" class="form-control" placeholder="搜索标题或内容" value="${keyword}">
+                <select name="threadType" class="form-control" style="max-width:180px;">
+                    <option value="">全部类型</option>
+                    <c:forEach items="${threadTypeOptions}" var="typeOption">
+                        <option value="${typeOption.code}" <c:if test="${threadType eq typeOption.code}">selected</c:if>>
+                            <c:out value="${typeOption.label}" />
+                        </option>
+                    </c:forEach>
+                </select>
+                <input type="text" name="tag" class="form-control" placeholder="标签，如：社团" value="${tag}" style="max-width:180px;">
                 <button type="submit" class="btn btn-sm">搜索</button>
-                <c:if test="${not empty keyword}">
+                <c:if test="${not empty keyword or not empty threadType or not empty tag}">
                     <a href="${pageContext.request.contextPath}/board/${board.id}" class="btn btn-sm btn-ghost">清除</a>
                 </c:if>
             </form>
@@ -51,16 +62,27 @@
                 <c:otherwise>
                     <c:forEach items="${threads}" var="t">
                         <article class="thread-card interactive-card" data-reveal>
-                            <div class="thread-stat">
+                            <div class="thread-stat thread-stat-rich">
                                 <span data-count="${t.replyCount}">${t.replyCount}</span>
                                 <small>回复</small>
+                                <small>赞 ${t.likeCount == null ? 0 : t.likeCount}</small>
                             </div>
                             <div>
+                                <c:if test="${not empty t.coverImagePath}">
+                                    <img src="${pageContext.request.contextPath}${t.coverImagePath}" alt="${t.title}" class="thread-card-cover">
+                                </c:if>
+                                <div class="thread-chip-row">
+                                    <span class="pill"><c:out value="${t.threadTypeLabel}" /></span>
+                                    <c:forEach items="${t.tagNames}" var="tagName">
+                                        <span class="mini-tag">#<c:out value="${tagName}" /></span>
+                                    </c:forEach>
+                                </div>
                                 <a href="${pageContext.request.contextPath}/thread/${t.id}" class="thread-title">
                                     <c:if test="${t.isTop == 1}"><span class="badge badge-top">置顶</span></c:if>
                                     <c:if test="${t.isEssence == 1}"><span class="badge badge-essence">精华</span></c:if>
                                     <c:out value="${t.title}" />
                                 </a>
+                                <p class="thread-summary"><c:out value="${t.content}" /></p>
                                 <p class="thread-meta">
                                     <span><c:out value="${t.authorName}" /> · <fmt:formatDate value="${t.createdAt}" pattern="yyyy-MM-dd HH:mm"/></span>
                                     <span>
@@ -83,10 +105,10 @@
                     <span>第 ${pageResult.pageNum} / ${pageResult.totalPages} 页，共 ${pageResult.totalCount} 条</span>
                     <span style="display:flex;gap:8px;">
                         <c:if test="${pageResult.hasPrev()}">
-                            <a class="btn btn-sm btn-ghost" href="${pageContext.request.contextPath}/board/${board.id}?page=${pageResult.pageNum - 1}&size=${pageResult.pageSize}&keyword=${keyword}">上一页</a>
+                            <a class="btn btn-sm btn-ghost" href="${pageContext.request.contextPath}/board/${board.id}?page=${pageResult.pageNum - 1}&size=${pageResult.pageSize}&keyword=${keyword}&threadType=${threadType}&tag=${tag}">上一页</a>
                         </c:if>
                         <c:if test="${pageResult.hasNext()}">
-                            <a class="btn btn-sm btn-ghost" href="${pageContext.request.contextPath}/board/${board.id}?page=${pageResult.pageNum + 1}&size=${pageResult.pageSize}&keyword=${keyword}">下一页</a>
+                            <a class="btn btn-sm btn-ghost" href="${pageContext.request.contextPath}/board/${board.id}?page=${pageResult.pageNum + 1}&size=${pageResult.pageSize}&keyword=${keyword}&threadType=${threadType}&tag=${tag}">下一页</a>
                         </c:if>
                     </span>
                 </div>
@@ -115,32 +137,15 @@
             </c:choose>
         </section>
 
-        <section class="panel" id="composer" data-reveal>
-            <h3 class="composer-title">发表新帖子</h3>
-            <c:choose>
-                <c:when test="${not empty sessionScope.user}">
-                    <form action="${pageContext.request.contextPath}/board/post/thread" method="post">
-                        <input type="hidden" name="boardId" value="${board.id}">
-                        <div class="form-group">
-                            <label class="form-label" for="title">标题</label>
-                            <input id="title" type="text" name="title" class="form-control" placeholder="一句话概括主题" required maxlength="100">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label" for="content">正文</label>
-                            <textarea id="content" name="content" class="form-control" rows="8" placeholder="写下你的想法" required></textarea>
-                        </div>
-                        <button type="submit" class="btn">发布主贴</button>
-                    </form>
-                </c:when>
-                <c:otherwise>
-                    <div class="login-reminder">
-                        <c:url var="loginUrl" value="/auth/login">
-                            <c:param name="returnTo" value="/board/${board.id}" />
-                        </c:url>
-                        需要先 <a href="${loginUrl}">登录</a> 才能发帖。
-                    </div>
-                </c:otherwise>
-            </c:choose>
+        <section class="panel" data-reveal>
+            <h3 class="composer-title">统一发帖入口</h3>
+            <p class="auth-subtitle">发帖页会统一处理版块选择、图片框架占位、表单校验和错误回填，避免吧页内重复维护一套提交逻辑。</p>
+            <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+                <a href="${createThreadUrl}" class="btn">去发帖</a>
+                <c:if test="${empty sessionScope.user}">
+                    <span class="thread-meta">访客也可以先打开发帖页，真正提交时会进入登录流程并自动回到这里。</span>
+                </c:if>
+            </div>
         </section>
     </main>
 </body>

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.chatroom.tieba.mapper.ThreadTagMapper">
+
+    <insert id="insert">
+        INSERT INTO forum_thread_tag(thread_id, tag_id, created_at)
+        VALUES(#{threadId}, #{tagId}, NOW())
+    </insert>
+
+    <select id="findThreadIdsByNormalizedTag" resultType="long">
+        SELECT tt.thread_id
+        FROM forum_thread_tag tt
+        JOIN forum_tag tag ON tag.id = tt.tag_id
+        WHERE tag.normalized_name = #{normalizedName}
+        ORDER BY tt.thread_id DESC
+    </select>
+
+</mapper>

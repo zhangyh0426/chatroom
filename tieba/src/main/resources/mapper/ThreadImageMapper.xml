@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.chatroom.tieba.mapper.ThreadImageMapper">
+
+    <insert id="insert" parameterType="com.chatroom.tieba.entity.ForumThreadImage" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO forum_thread_image(thread_id, sort_no, file_path, original_name, content_type, file_size, status, created_at)
+        VALUES(#{threadId}, #{sortNo}, #{filePath}, #{originalName}, #{contentType}, #{fileSize}, 1, NOW())
+    </insert>
+
+    <select id="findByThreadId" resultType="com.chatroom.tieba.vo.ThreadImageVO">
+        SELECT *
+        FROM forum_thread_image
+        WHERE thread_id = #{threadId} AND status = 1
+        ORDER BY sort_no ASC, id ASC
+    </select>
+
+</mapper>

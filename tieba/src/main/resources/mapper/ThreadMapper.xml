@@ -3,8 +3,38 @@
 <mapper namespace="com.chatroom.tieba.mapper.ThreadMapper">
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO forum_thread(board_id, user_id, title, content, view_count, reply_count, is_top, is_essence, status, last_reply_time, created_at)
-        VALUES(#{boardId}, #{userId}, #{title}, #{content}, 0, 0, 0, 0, 1, NOW(), NOW())
+        INSERT INTO forum_thread(
+            board_id,
+            user_id,
+            title,
+            content,
+            thread_type,
+            cover_image_path,
+            view_count,
+            reply_count,
+            like_count,
+            is_top,
+            is_essence,
+            status,
+            last_reply_time,
+            created_at
+        )
+        VALUES(
+            #{boardId},
+            #{userId},
+            #{title},
+            #{content},
+            #{threadType},
+            #{coverImagePath},
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            NOW(),
+            NOW()
+        )
     </insert>
 
     <select id="findRawById" resultType="com.chatroom.tieba.entity.ForumThread">
@@ -63,7 +93,6 @@
         UPDATE forum_thread SET last_reply_time = NOW() WHERE id = #{id}
     </update>
 
-    <!-- v1.1: 分页查询 -->
     <select id="findThreadsByBoardIdPaged" resultType="com.chatroom.tieba.vo.ThreadVO">
         SELECT t.*, u.nickname as authorName,
                u.avatar_path as avatar_path, u.avatar_path as authorAvatar
@@ -108,6 +137,60 @@
         LIMIT #{offset}, #{size}
     </select>
 
+    <select id="findThreadsByBoardFilters" resultType="com.chatroom.tieba.vo.ThreadVO">
+        SELECT t.*, u.nickname as authorName,
+               u.avatar_path as avatar_path, u.avatar_path as authorAvatar, b.name as boardName
+        FROM forum_thread t
+        LEFT JOIN forum_user_profile u ON t.user_id = u.user_id
+        LEFT JOIN forum_board b ON t.board_id = b.id
+        WHERE t.board_id = #{boardId}
+          AND t.status = 1
+        <if test="keyword != null and keyword != ''">
+            AND (t.title LIKE CONCAT('%', #{keyword}, '%') OR t.content LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="threadType != null and threadType != ''">
+            AND t.thread_type = #{threadType}
+        </if>
+        <if test="normalizedTagName != null and normalizedTagName != ''">
+            AND EXISTS (
+                SELECT 1
+                FROM forum_thread_tag tt
+                JOIN forum_tag tag ON tag.id = tt.tag_id
+                WHERE tt.thread_id = t.id
+                  AND tag.normalized_name = #{normalizedTagName}
+            )
+        </if>
+        ORDER BY t.is_top DESC, t.last_reply_time DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="findThreadsByBoardFiltersByAvatar" resultType="com.chatroom.tieba.vo.ThreadVO">
+        SELECT t.*, u.nickname as authorName,
+               u.avatar as avatar_path, u.avatar as authorAvatar, b.name as boardName
+        FROM forum_thread t
+        LEFT JOIN forum_user_profile u ON t.user_id = u.user_id
+        LEFT JOIN forum_board b ON t.board_id = b.id
+        WHERE t.board_id = #{boardId}
+          AND t.status = 1
+        <if test="keyword != null and keyword != ''">
+            AND (t.title LIKE CONCAT('%', #{keyword}, '%') OR t.content LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="threadType != null and threadType != ''">
+            AND t.thread_type = #{threadType}
+        </if>
+        <if test="normalizedTagName != null and normalizedTagName != ''">
+            AND EXISTS (
+                SELECT 1
+                FROM forum_thread_tag tt
+                JOIN forum_tag tag ON tag.id = tt.tag_id
+                WHERE tt.thread_id = t.id
+                  AND tag.normalized_name = #{normalizedTagName}
+            )
+        </if>
+        ORDER BY t.is_top DESC, t.last_reply_time DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
     <select id="countThreadsByBoardId" resultType="int">
         SELECT COUNT(*) FROM forum_thread WHERE board_id = #{boardId} AND status = 1
     </select>
@@ -120,7 +203,28 @@
           AND (title LIKE CONCAT('%', #{keyword}, '%') OR content LIKE CONCAT('%', #{keyword}, '%'))
     </select>
 
-    <!-- v1.1: 点赞 -->
+    <select id="countThreadsByBoardFilters" resultType="int">
+        SELECT COUNT(*)
+        FROM forum_thread t
+        WHERE t.board_id = #{boardId}
+          AND t.status = 1
+        <if test="keyword != null and keyword != ''">
+            AND (t.title LIKE CONCAT('%', #{keyword}, '%') OR t.content LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="threadType != null and threadType != ''">
+            AND t.thread_type = #{threadType}
+        </if>
+        <if test="normalizedTagName != null and normalizedTagName != ''">
+            AND EXISTS (
+                SELECT 1
+                FROM forum_thread_tag tt
+                JOIN forum_tag tag ON tag.id = tt.tag_id
+                WHERE tt.thread_id = t.id
+                  AND tag.normalized_name = #{normalizedTagName}
+            )
+        </if>
+    </select>
+
     <update id="increaseLikeCount">
         UPDATE forum_thread SET like_count = like_count + 1 WHERE id = #{id}
     </update>
@@ -129,7 +233,6 @@
         UPDATE forum_thread SET like_count = GREATEST(like_count - 1, 0) WHERE id = #{id}
     </update>
 
-    <!-- v1.1: 搜索 -->
     <select id="searchByKeyword" resultType="com.chatroom.tieba.vo.ThreadVO">
         SELECT t.*, u.nickname as authorName,
                u.avatar_path as avatar_path, u.avatar_path as authorAvatar, b.name as boardName
@@ -154,6 +257,64 @@
         LIMIT #{offset}, #{size}
     </select>
 
+    <select id="searchByFilters" resultType="com.chatroom.tieba.vo.ThreadVO">
+        SELECT t.*, u.nickname as authorName,
+               u.avatar_path as avatar_path, u.avatar_path as authorAvatar, b.name as boardName
+        FROM forum_thread t
+        LEFT JOIN forum_user_profile u ON t.user_id = u.user_id
+        LEFT JOIN forum_board b ON t.board_id = b.id
+        WHERE t.status = 1
+        <if test="keyword != null and keyword != ''">
+            AND (t.title LIKE CONCAT('%', #{keyword}, '%') OR t.content LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="boardId != null">
+            AND t.board_id = #{boardId}
+        </if>
+        <if test="threadType != null and threadType != ''">
+            AND t.thread_type = #{threadType}
+        </if>
+        <if test="normalizedTagName != null and normalizedTagName != ''">
+            AND EXISTS (
+                SELECT 1
+                FROM forum_thread_tag tt
+                JOIN forum_tag tag ON tag.id = tt.tag_id
+                WHERE tt.thread_id = t.id
+                  AND tag.normalized_name = #{normalizedTagName}
+            )
+        </if>
+        ORDER BY t.is_top DESC, t.created_at DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="searchByFiltersByAvatar" resultType="com.chatroom.tieba.vo.ThreadVO">
+        SELECT t.*, u.nickname as authorName,
+               u.avatar as avatar_path, u.avatar as authorAvatar, b.name as boardName
+        FROM forum_thread t
+        LEFT JOIN forum_user_profile u ON t.user_id = u.user_id
+        LEFT JOIN forum_board b ON t.board_id = b.id
+        WHERE t.status = 1
+        <if test="keyword != null and keyword != ''">
+            AND (t.title LIKE CONCAT('%', #{keyword}, '%') OR t.content LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="boardId != null">
+            AND t.board_id = #{boardId}
+        </if>
+        <if test="threadType != null and threadType != ''">
+            AND t.thread_type = #{threadType}
+        </if>
+        <if test="normalizedTagName != null and normalizedTagName != ''">
+            AND EXISTS (
+                SELECT 1
+                FROM forum_thread_tag tt
+                JOIN forum_tag tag ON tag.id = tt.tag_id
+                WHERE tt.thread_id = t.id
+                  AND tag.normalized_name = #{normalizedTagName}
+            )
+        </if>
+        ORDER BY t.is_top DESC, t.created_at DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
     <select id="countSearchByKeyword" resultType="int">
         SELECT COUNT(*)
         FROM forum_thread
@@ -161,7 +322,30 @@
           AND (title LIKE CONCAT('%', #{keyword}, '%') OR content LIKE CONCAT('%', #{keyword}, '%'))
     </select>
 
-    <!-- v1.1: 热门榜单 -->
+    <select id="countSearchByFilters" resultType="int">
+        SELECT COUNT(*)
+        FROM forum_thread t
+        WHERE t.status = 1
+        <if test="keyword != null and keyword != ''">
+            AND (t.title LIKE CONCAT('%', #{keyword}, '%') OR t.content LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="boardId != null">
+            AND t.board_id = #{boardId}
+        </if>
+        <if test="threadType != null and threadType != ''">
+            AND t.thread_type = #{threadType}
+        </if>
+        <if test="normalizedTagName != null and normalizedTagName != ''">
+            AND EXISTS (
+                SELECT 1
+                FROM forum_thread_tag tt
+                JOIN forum_tag tag ON tag.id = tt.tag_id
+                WHERE tt.thread_id = t.id
+                  AND tag.normalized_name = #{normalizedTagName}
+            )
+        </if>
+    </select>
+
     <select id="findHotThreads" resultType="com.chatroom.tieba.vo.ThreadVO">
         SELECT t.*, u.nickname as authorName,
                u.avatar_path as avatar_path, u.avatar_path as authorAvatar, b.name as boardName
@@ -184,7 +368,52 @@
         LIMIT #{limit}
     </select>
 
-    <!-- v1.1: 我的足迹 - 我发布的帖子 -->
+    <select id="findLatestThreads" resultType="com.chatroom.tieba.vo.ThreadVO">
+        SELECT t.*, u.nickname as authorName,
+               u.avatar_path as avatar_path, u.avatar_path as authorAvatar, b.name as boardName
+        FROM forum_thread t
+        LEFT JOIN forum_user_profile u ON t.user_id = u.user_id
+        LEFT JOIN forum_board b ON t.board_id = b.id
+        WHERE t.status = 1
+        ORDER BY t.created_at DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="findLatestThreadsByAvatar" resultType="com.chatroom.tieba.vo.ThreadVO">
+        SELECT t.*, u.nickname as authorName,
+               u.avatar as avatar_path, u.avatar as authorAvatar, b.name as boardName
+        FROM forum_thread t
+        LEFT JOIN forum_user_profile u ON t.user_id = u.user_id
+        LEFT JOIN forum_board b ON t.board_id = b.id
+        WHERE t.status = 1
+        ORDER BY t.created_at DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="findEssenceThreads" resultType="com.chatroom.tieba.vo.ThreadVO">
+        SELECT t.*, u.nickname as authorName,
+               u.avatar_path as avatar_path, u.avatar_path as authorAvatar, b.name as boardName
+        FROM forum_thread t
+        LEFT JOIN forum_user_profile u ON t.user_id = u.user_id
+        LEFT JOIN forum_board b ON t.board_id = b.id
+        WHERE t.status = 1
+          AND t.is_essence = 1
+        ORDER BY t.last_reply_time DESC, t.created_at DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="findEssenceThreadsByAvatar" resultType="com.chatroom.tieba.vo.ThreadVO">
+        SELECT t.*, u.nickname as authorName,
+               u.avatar as avatar_path, u.avatar as authorAvatar, b.name as boardName
+        FROM forum_thread t
+        LEFT JOIN forum_user_profile u ON t.user_id = u.user_id
+        LEFT JOIN forum_board b ON t.board_id = b.id
+        WHERE t.status = 1
+          AND t.is_essence = 1
+        ORDER BY t.last_reply_time DESC, t.created_at DESC
+        LIMIT #{limit}
+    </select>
+
     <select id="findThreadsByUserId" resultType="com.chatroom.tieba.vo.ThreadVO">
         SELECT t.*, u.nickname as authorName,
                u.avatar_path as avatar_path, u.avatar_path as authorAvatar, b.name as boardName

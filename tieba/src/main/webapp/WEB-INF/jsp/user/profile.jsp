@@ -56,6 +56,23 @@
             font-size: 13px;
             line-height: 1.6;
         }
+        .profile-actions {
+            margin-top: 16px;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .profile-guide {
+            display: grid;
+            gap: 14px;
+        }
+        .my-thread-item.is-highlight {
+            border-bottom-color: rgba(59, 130, 246, 0.65);
+            background: rgba(191, 219, 254, 0.22);
+            border-radius: 10px;
+            padding-left: 10px;
+            padding-right: 10px;
+        }
         @media (max-width: 900px) {
             .profile-shell {
                 grid-template-columns: 1fr;
@@ -67,6 +84,9 @@
     <jsp:include page="../common/header.jsp" />
 
     <main class="container">
+        <c:url var="profileCreateThreadUrl" value="/board/post/thread">
+            <c:param name="entrySource" value="profile" />
+        </c:url>
         <div class="crumb-row" data-reveal>
             <a href="${pageContext.request.contextPath}/">返回首页</a>
         </div>
@@ -75,6 +95,11 @@
             <p class="auth-kicker">PERSONAL CENTER</p>
             <h1 class="composer-title">编辑你的社区资料</h1>
             <p class="auth-subtitle">支持昵称、个性签名和本地头像上传，头像文件将写入外部上传目录。</p>
+            <div class="profile-actions">
+                <a href="${profileCreateThreadUrl}" class="btn btn-ghost">我要发帖</a>
+                <a href="${pageContext.request.contextPath}/user/notifications" class="btn btn-ghost">通知中心</a>
+                <span class="pill">统一发帖页</span>
+            </div>
         </section>
 
         <c:if test="${not empty error}">
@@ -84,132 +109,151 @@
             <div class="alert alert-success" data-reveal><c:out value="${success}" /></div>
         </c:if>
 
-        <div class="profile-shell">
-            <section class="panel profile-avatar-card interactive-card" data-reveal>
-                <c:choose>
-                    <c:when test="${not empty profile.avatarPath}">
-                        <c:set var="profileAvatarUrl" value="${profile.avatarPath}" />
-                        <c:if test="${not fn:startsWith(profileAvatarUrl, 'http://')
-                                      and not fn:startsWith(profileAvatarUrl, 'https://')
-                                      and not fn:startsWith(profileAvatarUrl, pageContext.request.contextPath)}">
-                            <c:set var="profileAvatarUrl" value="${pageContext.request.contextPath}${profileAvatarUrl}" />
-                        </c:if>
-                        <img src="<c:out value='${profileAvatarUrl}' />" alt="用户头像" class="profile-avatar" onerror="this.src='${pageContext.request.contextPath}/static/img/default-avatar.svg'">
-                    </c:when>
-                    <c:otherwise>
-                        <div class="profile-avatar profile-avatar-fallback">
-                            <c:out value="${empty profile.nickname ? fn:substring(account.username, 0, 1) : fn:substring(profile.nickname, 0, 1)}" />
+        <c:choose>
+            <c:when test="${not empty sessionScope.user}">
+                <div class="profile-shell">
+                    <section class="panel profile-avatar-card interactive-card" data-reveal>
+                        <c:choose>
+                            <c:when test="${not empty profile.avatarPath}">
+                                <c:set var="profileAvatarUrl" value="${profile.avatarPath}" />
+                                <c:if test="${not fn:startsWith(profileAvatarUrl, 'http://')
+                                              and not fn:startsWith(profileAvatarUrl, 'https://')
+                                              and not fn:startsWith(profileAvatarUrl, pageContext.request.contextPath)}">
+                                    <c:set var="profileAvatarUrl" value="${pageContext.request.contextPath}${profileAvatarUrl}" />
+                                </c:if>
+                                <img src="<c:out value='${profileAvatarUrl}' />" alt="用户头像" class="profile-avatar" onerror="this.src='${pageContext.request.contextPath}/static/img/default-avatar.svg'">
+                            </c:when>
+                            <c:otherwise>
+                                <div class="profile-avatar profile-avatar-fallback">
+                                    <c:out value="${empty profile.nickname ? fn:substring(account.username, 0, 1) : fn:substring(profile.nickname, 0, 1)}" />
+                                </div>
+                            </c:otherwise>
+                        </c:choose>
+
+                        <h2><c:out value="${empty profile.nickname ? account.nickname : profile.nickname}" /></h2>
+                        <div class="profile-account-meta">
+                            <div>
+                                <span>登录账号</span>
+                                <strong><c:out value="${account.username}" /></strong>
+                            </div>
+                            <div>
+                                <span>当前头像地址</span>
+                                <strong><c:out value="${empty profile.avatarPath ? '未上传头像' : profile.avatarPath}" /></strong>
+                            </div>
                         </div>
-                    </c:otherwise>
-                </c:choose>
+                        <p class="upload-tip">
+                            推荐上传 1:1 方形头像。支持 `jpg/png/gif/webp`，单文件不超过 2MB。
+                        </p>
+                    </section>
 
-                <h2><c:out value="${empty profile.nickname ? account.nickname : profile.nickname}" /></h2>
-                <div class="profile-account-meta">
-                    <div>
-                        <span>登录账号</span>
-                        <strong><c:out value="${account.username}" /></strong>
-                    </div>
-                    <div>
-                        <span>当前头像地址</span>
-                        <strong><c:out value="${empty profile.avatarPath ? '未上传头像' : profile.avatarPath}" /></strong>
-                    </div>
+                    <section class="panel" data-reveal>
+                        <form action="${pageContext.request.contextPath}/user/profile/update" method="post" enctype="multipart/form-data">
+                            <div class="form-group">
+                                <label class="form-label" for="nickname">昵称</label>
+                                <input type="text" id="nickname" name="nickname" class="form-control" maxlength="30"
+                                       value="<c:out value='${empty profile.nickname ? account.nickname : profile.nickname}' />" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label" for="bio">个性签名 / 简介</label>
+                                <textarea id="bio" name="bio" class="form-control" rows="6" maxlength="255"
+                                          placeholder="写一句介绍自己或吧内状态的话"><c:out value="${profile.bio}" /></textarea>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label" for="avatarFile">上传新头像</label>
+                                <input type="file" id="avatarFile" name="avatarFile" class="form-control"
+                                       accept=".jpg,.jpeg,.png,.gif,.webp,image/*">
+                            </div>
+
+                            <button type="submit" class="btn">保存个人资料</button>
+                        </form>
+                    </section>
                 </div>
-                <p class="upload-tip">
-                    推荐上传 1:1 方形头像。支持 `jpg/png/gif/webp`，单文件不超过 2MB。
-                </p>
-            </section>
 
-            <section class="panel" data-reveal>
-                <form action="${pageContext.request.contextPath}/user/profile/update" method="post" enctype="multipart/form-data">
-                    <div class="form-group">
-                        <label class="form-label" for="nickname">昵称</label>
-                        <input type="text" id="nickname" name="nickname" class="form-control" maxlength="30"
-                               value="<c:out value='${empty profile.nickname ? account.nickname : profile.nickname}' />" required>
+                <section class="panel" data-reveal>
+                    <header class="section-head">
+                        <h2>我的足迹</h2>
+                        <span class="pill">双列表视图</span>
+                    </header>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px;">
+                        <article>
+                            <h3 style="margin-bottom:10px;">我发的帖子</h3>
+                            <c:if test="${not empty highlightThreadId}">
+                                <div class="thread-meta" style="margin-bottom:8px;">已定位到你刚发布的帖子</div>
+                            </c:if>
+                            <c:choose>
+                                <c:when test="${empty myThreads.list}">
+                                    <div class="empty-state">你还没有发布帖子。</div>
+                                </c:when>
+                                <c:otherwise>
+                                    <c:forEach items="${myThreads.list}" var="t">
+                                        <div id="my-thread-${t.id}" class="thread-meta my-thread-item ${t.id == highlightThreadId ? 'is-highlight' : ''}" style="padding:8px 0;border-bottom:1px solid rgba(148,163,184,.2);display:flex;justify-content:space-between;gap:8px;">
+                                            <a href="${pageContext.request.contextPath}/thread/${t.id}">
+                                                <c:out value="${t.title}" />
+                                            </a>
+                                            <span><fmt:formatDate value="${t.createdAt}" pattern="MM-dd HH:mm"/></span>
+                                        </div>
+                                    </c:forEach>
+                                    <div class="thread-meta" style="margin-top:8px;display:flex;justify-content:space-between;">
+                                        <span>第 ${myThreads.pageNum}/${myThreads.totalPages} 页</span>
+                                        <span style="display:flex;gap:8px;">
+                                            <c:if test="${myThreads.hasPrev()}">
+                                                <a href="${pageContext.request.contextPath}/user/profile?myThreadPage=${myThreads.pageNum - 1}&myReplyPage=${myReplies.pageNum}&highlightThreadId=${highlightThreadId}" class="btn btn-sm btn-ghost">上一页</a>
+                                            </c:if>
+                                            <c:if test="${myThreads.hasNext()}">
+                                                <a href="${pageContext.request.contextPath}/user/profile?myThreadPage=${myThreads.pageNum + 1}&myReplyPage=${myReplies.pageNum}&highlightThreadId=${highlightThreadId}" class="btn btn-sm btn-ghost">下一页</a>
+                                            </c:if>
+                                        </span>
+                                    </div>
+                                </c:otherwise>
+                            </c:choose>
+                        </article>
+                        <article>
+                            <h3 style="margin-bottom:10px;">我回复的帖子</h3>
+                            <c:choose>
+                                <c:when test="${empty myReplies.list}">
+                                    <div class="empty-state">你还没有回复内容。</div>
+                                </c:when>
+                                <c:otherwise>
+                                    <c:forEach items="${myReplies.list}" var="p">
+                                        <div class="thread-meta" style="padding:8px 0;border-bottom:1px solid rgba(148,163,184,.2);display:grid;gap:4px;">
+                                            <a href="${pageContext.request.contextPath}/thread/${p.threadId}">
+                                                <c:out value="${empty p.threadTitle ? '未命名帖子' : p.threadTitle}" />
+                                            </a>
+                                            <span><fmt:formatDate value="${p.createdAt}" pattern="MM-dd HH:mm"/> · <c:out value="${p.content}" /></span>
+                                        </div>
+                                    </c:forEach>
+                                    <div class="thread-meta" style="margin-top:8px;display:flex;justify-content:space-between;">
+                                        <span>第 ${myReplies.pageNum}/${myReplies.totalPages} 页</span>
+                                        <span style="display:flex;gap:8px;">
+                                            <c:if test="${myReplies.hasPrev()}">
+                                                <a href="${pageContext.request.contextPath}/user/profile?myThreadPage=${myThreads.pageNum}&myReplyPage=${myReplies.pageNum - 1}&highlightThreadId=${highlightThreadId}" class="btn btn-sm btn-ghost">上一页</a>
+                                            </c:if>
+                                            <c:if test="${myReplies.hasNext()}">
+                                                <a href="${pageContext.request.contextPath}/user/profile?myThreadPage=${myThreads.pageNum}&myReplyPage=${myReplies.pageNum + 1}&highlightThreadId=${highlightThreadId}" class="btn btn-sm btn-ghost">下一页</a>
+                                            </c:if>
+                                        </span>
+                                    </div>
+                                </c:otherwise>
+                            </c:choose>
+                        </article>
                     </div>
-
-                    <div class="form-group">
-                        <label class="form-label" for="bio">个性签名 / 简介</label>
-                        <textarea id="bio" name="bio" class="form-control" rows="6" maxlength="255"
-                                  placeholder="写一句介绍自己或吧内状态的话"><c:out value="${profile.bio}" /></textarea>
+                </section>
+            </c:when>
+            <c:otherwise>
+                <section class="panel profile-guide" data-reveal>
+                    <p>当前为访客模式。登录后可编辑资料、查看我的足迹，并进入统一发帖页发布新帖子。</p>
+                    <div class="profile-actions">
+                        <c:url var="loginToProfileUrl" value="/auth/login">
+                            <c:param name="returnTo" value="/user/profile" />
+                        </c:url>
+                        <a href="${loginToProfileUrl}" class="btn">立即登录</a>
+                        <a href="${pageContext.request.contextPath}/auth/register" class="btn btn-ghost">去注册</a>
                     </div>
-
-                    <div class="form-group">
-                        <label class="form-label" for="avatarFile">上传新头像</label>
-                        <input type="file" id="avatarFile" name="avatarFile" class="form-control"
-                               accept=".jpg,.jpeg,.png,.gif,.webp,image/*">
-                    </div>
-
-                    <button type="submit" class="btn">保存个人资料</button>
-                </form>
-            </section>
-        </div>
-
-        <section class="panel" data-reveal>
-            <header class="section-head">
-                <h2>我的足迹</h2>
-                <span class="pill">双列表视图</span>
-            </header>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px;">
-                <article>
-                    <h3 style="margin-bottom:10px;">我发的帖子</h3>
-                    <c:choose>
-                        <c:when test="${empty myThreads.list}">
-                            <div class="empty-state">你还没有发布帖子。</div>
-                        </c:when>
-                        <c:otherwise>
-                            <c:forEach items="${myThreads.list}" var="t">
-                                <div class="thread-meta" style="padding:8px 0;border-bottom:1px solid rgba(148,163,184,.2);display:flex;justify-content:space-between;gap:8px;">
-                                    <a href="${pageContext.request.contextPath}/thread/${t.id}">
-                                        <c:out value="${t.title}" />
-                                    </a>
-                                    <span><fmt:formatDate value="${t.createdAt}" pattern="MM-dd HH:mm"/></span>
-                                </div>
-                            </c:forEach>
-                            <div class="thread-meta" style="margin-top:8px;display:flex;justify-content:space-between;">
-                                <span>第 ${myThreads.pageNum}/${myThreads.totalPages} 页</span>
-                                <span style="display:flex;gap:8px;">
-                                    <c:if test="${myThreads.hasPrev()}">
-                                        <a href="${pageContext.request.contextPath}/user/profile?myThreadPage=${myThreads.pageNum - 1}&myReplyPage=${myReplies.pageNum}" class="btn btn-sm btn-ghost">上一页</a>
-                                    </c:if>
-                                    <c:if test="${myThreads.hasNext()}">
-                                        <a href="${pageContext.request.contextPath}/user/profile?myThreadPage=${myThreads.pageNum + 1}&myReplyPage=${myReplies.pageNum}" class="btn btn-sm btn-ghost">下一页</a>
-                                    </c:if>
-                                </span>
-                            </div>
-                        </c:otherwise>
-                    </c:choose>
-                </article>
-                <article>
-                    <h3 style="margin-bottom:10px;">我回复的帖子</h3>
-                    <c:choose>
-                        <c:when test="${empty myReplies.list}">
-                            <div class="empty-state">你还没有回复内容。</div>
-                        </c:when>
-                        <c:otherwise>
-                            <c:forEach items="${myReplies.list}" var="p">
-                                <div class="thread-meta" style="padding:8px 0;border-bottom:1px solid rgba(148,163,184,.2);display:grid;gap:4px;">
-                                    <a href="${pageContext.request.contextPath}/thread/${p.threadId}">
-                                        <c:out value="${empty p.threadTitle ? '未命名帖子' : p.threadTitle}" />
-                                    </a>
-                                    <span><fmt:formatDate value="${p.createdAt}" pattern="MM-dd HH:mm"/> · <c:out value="${p.content}" /></span>
-                                </div>
-                            </c:forEach>
-                            <div class="thread-meta" style="margin-top:8px;display:flex;justify-content:space-between;">
-                                <span>第 ${myReplies.pageNum}/${myReplies.totalPages} 页</span>
-                                <span style="display:flex;gap:8px;">
-                                    <c:if test="${myReplies.hasPrev()}">
-                                        <a href="${pageContext.request.contextPath}/user/profile?myThreadPage=${myThreads.pageNum}&myReplyPage=${myReplies.pageNum - 1}" class="btn btn-sm btn-ghost">上一页</a>
-                                    </c:if>
-                                    <c:if test="${myReplies.hasNext()}">
-                                        <a href="${pageContext.request.contextPath}/user/profile?myThreadPage=${myThreads.pageNum}&myReplyPage=${myReplies.pageNum + 1}" class="btn btn-sm btn-ghost">下一页</a>
-                                    </c:if>
-                                </span>
-                            </div>
-                        </c:otherwise>
-                    </c:choose>
-                </article>
-            </div>
-        </section>
+                </section>
+            </c:otherwise>
+        </c:choose>
     </main>
 </body>
 </html>

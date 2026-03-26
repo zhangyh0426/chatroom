@@ -34,7 +34,6 @@
     <!-- 拦截器配置 -->
     <mvc:interceptors>
         <mvc:interceptor>
-            <mvc:mapping path="/board/post/**"/>
             <mvc:mapping path="/thread/reply/**"/>
             <mvc:mapping path="/thread/subreply/**"/>
             <mvc:mapping path="/thread/api/**"/>

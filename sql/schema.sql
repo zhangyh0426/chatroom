@@ -70,13 +70,48 @@ CREATE TABLE `forum_thread` (
   `user_id` BIGINT NOT NULL,
   `title` VARCHAR(200) NOT NULL,
   `content` TEXT NOT NULL,
+  `thread_type` VARCHAR(20) NOT NULL DEFAULT 'DISCUSSION',
+  `cover_image_path` VARCHAR(255) DEFAULT NULL,
   `view_count` INT DEFAULT 0,
   `reply_count` INT DEFAULT 0,
+  `like_count` INT DEFAULT 0,
   `is_top` TINYINT DEFAULT 0,
   `is_essence` TINYINT DEFAULT 0,
   `status` TINYINT DEFAULT 1 COMMENT '1:正常, 0:删除/隐藏',
   `last_reply_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `forum_thread_image` (
+  `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+  `thread_id` BIGINT NOT NULL,
+  `sort_no` INT NOT NULL DEFAULT 1,
+  `file_path` VARCHAR(255) NOT NULL,
+  `original_name` VARCHAR(255) DEFAULT NULL,
+  `content_type` VARCHAR(100) DEFAULT NULL,
+  `file_size` BIGINT DEFAULT 0,
+  `status` TINYINT DEFAULT 1 COMMENT '1:正常, 0:删除',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY `idx_forum_thread_image_thread_status_sort` (`thread_id`, `status`, `sort_no`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `forum_tag` (
+  `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+  `name` VARCHAR(30) NOT NULL,
+  `normalized_name` VARCHAR(30) NOT NULL,
+  `status` TINYINT DEFAULT 1 COMMENT '1:正常, 0:停用',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY `uk_forum_tag_name` (`name`),
+  UNIQUE KEY `uk_forum_tag_normalized_name` (`normalized_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `forum_thread_tag` (
+  `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+  `thread_id` BIGINT NOT NULL,
+  `tag_id` BIGINT NOT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY `uk_forum_thread_tag_thread_tag` (`thread_id`, `tag_id`),
+  KEY `idx_forum_thread_tag_tag_id` (`tag_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE `forum_post` (
@@ -85,8 +120,25 @@ CREATE TABLE `forum_post` (
   `user_id` BIGINT NOT NULL,
   `floor_no` INT NOT NULL,
   `content` TEXT NOT NULL,
+  `like_count` INT DEFAULT 0,
   `status` TINYINT DEFAULT 1 COMMENT '1:正常, 0:删除',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `forum_notification` (
+  `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+  `user_id` BIGINT NOT NULL,
+  `actor_user_id` BIGINT DEFAULT NULL,
+  `notification_type` VARCHAR(20) NOT NULL,
+  `title` VARCHAR(120) NOT NULL,
+  `content` VARCHAR(255) DEFAULT NULL,
+  `target_type` VARCHAR(20) DEFAULT NULL,
+  `target_id` BIGINT DEFAULT NULL,
+  `target_url` VARCHAR(255) DEFAULT NULL,
+  `is_read` TINYINT DEFAULT 0 COMMENT '0:未读, 1:已读',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY `idx_forum_notification_user_read_created` (`user_id`, `is_read`, `created_at`),
+  KEY `idx_forum_notification_actor_user_id` (`actor_user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE `forum_reply` (
@@ -99,6 +151,25 @@ CREATE TABLE `forum_reply` (
   `status` TINYINT DEFAULT 1 COMMENT '1:正常, 0:删除',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO `forum_category` (`name`, `sort_order`) VALUES
+('技术交流', 10),
+('校园生活', 20),
+('兴趣讨论', 30)
+ON DUPLICATE KEY UPDATE
+`sort_order` = VALUES(`sort_order`);
+
+INSERT INTO `forum_board` (`category_id`, `name`, `description`, `icon`, `thread_count`, `post_count`, `status`) VALUES
+((SELECT id FROM `forum_category` WHERE `name` = '技术交流'), 'Java开发', '记录日常开发问题、项目实践与踩坑总结。', 'J', 0, 0, 1),
+((SELECT id FROM `forum_category` WHERE `name` = '技术交流'), 'Spring实战', '围绕 Spring / Spring MVC / MyBatis 的项目经验交流。', 'S', 0, 0, 1),
+((SELECT id FROM `forum_category` WHERE `name` = '校园生活'), '校园杂谈', '聊聊课程、活动、社团和校园日常。', '校', 0, 0, 1),
+((SELECT id FROM `forum_category` WHERE `name` = '校园生活'), '二手互助', '闲置转让、拼车拼单和互助信息都可以发在这里。', '换', 0, 0, 1),
+((SELECT id FROM `forum_category` WHERE `name` = '兴趣讨论'), '游戏讨论', '游戏资讯、开黑招募和体验分享集中讨论。', '游', 0, 0, 1)
+ON DUPLICATE KEY UPDATE
+`category_id` = VALUES(`category_id`),
+`description` = VALUES(`description`),
+`icon` = VALUES(`icon`),
+`status` = VALUES(`status`);
 
 -- ====================
 -- 3. 公告与审核域 (Announcement & Moderation Domain)

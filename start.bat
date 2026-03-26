@@ -9,6 +9,7 @@ set "PROJECT_ROOT=%PROJECT_ROOT:~0,-1%"
 set "TIEBA_DIR=%PROJECT_ROOT%\tieba"
 set "MVNW=%TIEBA_DIR%\mvnw.cmd"
 set "WAR_FILE=%TIEBA_DIR%\target\tieba.war"
+set "APP_URL=http://localhost:8080/tieba"
 
 echo [INFO] Project root: %PROJECT_ROOT%
 echo [INFO] Backend module: %TIEBA_DIR%
@@ -85,8 +86,27 @@ if errorlevel 1 (
   exit /b 1
 )
 
+echo [INFO] Waiting for application readiness: %APP_URL%
+set /a READY_ATTEMPTS=0
+
+:wait_ready
+powershell -NoLogo -NoProfile -Command "try { $resp = Invoke-WebRequest -Uri '%APP_URL%' -UseBasicParsing -TimeoutSec 5; if ($resp.StatusCode -ge 200 -and $resp.StatusCode -lt 500) { exit 0 } else { exit 1 } } catch { exit 1 }"
+if not errorlevel 1 goto :open_browser
+set /a READY_ATTEMPTS+=1
+if %READY_ATTEMPTS% GEQ 30 goto :ready_timeout
+timeout /t 2 /nobreak >nul
+goto :wait_ready
+
+:open_browser
+echo [INFO] Opening browser: %APP_URL%
+start "" "%APP_URL%"
 echo [SUCCESS] Application startup process completed.
-echo [INFO] Open: http://localhost:8080/tieba
+echo [INFO] Opened: %APP_URL%
+exit /b 0
+
+:ready_timeout
+echo [WARN] Application is still starting. Open manually after deployment finishes: %APP_URL%
+echo [SUCCESS] Application startup process completed.
 exit /b 0
 
 :help

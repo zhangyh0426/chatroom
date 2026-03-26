@@ -52,9 +52,14 @@ public class UserController {
     @GetMapping("/user/profile")
     public String showProfile(@RequestParam(value = "myThreadPage", defaultValue = "1") int myThreadPage,
                               @RequestParam(value = "myReplyPage", defaultValue = "1") int myReplyPage,
+                              @RequestParam(value = "highlightThreadId", required = false) Long highlightThreadId,
                               HttpSession session,
                               org.springframework.ui.Model model) {
-        UserSessionDTO loginUser = requireLogin(session);
+        UserSessionDTO loginUser = session == null ? null : (UserSessionDTO) session.getAttribute("user");
+        model.addAttribute("highlightThreadId", highlightThreadId);
+        if (loginUser == null) {
+            return "user/profile";
+        }
         UserProfile profile = userService.getProfileByUserId(loginUser.getId());
         if (profile == null) {
             profile = new UserProfile();

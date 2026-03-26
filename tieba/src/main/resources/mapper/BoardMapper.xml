@@ -6,6 +6,13 @@
         SELECT * FROM forum_category ORDER BY sort_order ASC
     </select>
 
+    <select id="findAllBoards" resultType="ForumBoard">
+        SELECT *
+        FROM forum_board
+        WHERE status = 1
+        ORDER BY category_id ASC, id ASC
+    </select>
+
     <select id="findBoardsByCategoryId" resultType="ForumBoard">
         SELECT * FROM forum_board WHERE category_id = #{categoryId} AND status = 1 ORDER BY id ASC
     </select>

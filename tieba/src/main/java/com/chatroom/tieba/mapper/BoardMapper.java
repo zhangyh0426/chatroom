@@ -7,6 +7,7 @@ import java.util.List;
 
 public interface BoardMapper {
     List<ForumCategory> findAllCategories();
+    List<ForumBoard> findAllBoards();
     List<ForumBoard> findBoardsByCategoryId(@Param("categoryId") Integer categoryId);
     ForumBoard findBoardById(@Param("id") Integer id);
     int increaseThreadCount(@Param("id") Integer id);

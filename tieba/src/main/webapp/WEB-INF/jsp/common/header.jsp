@@ -9,9 +9,7 @@
         <c:url var="interestGroupsUrl" value="/auth/login">
             <c:param name="returnTo" value="/chat/rooms#rooms-lobby" />
         </c:url>
-        <c:url var="profileUrl" value="/auth/login">
-            <c:param name="returnTo" value="/user/profile" />
-        </c:url>
+        <c:set var="profileUrl" value="${pageContext.request.contextPath}/user/profile" />
     </c:otherwise>
 </c:choose>
 <header class="site-header" data-reveal>
@@ -30,10 +28,21 @@
             <a href="${interestGroupsUrl}">兴趣群组</a>
         </nav>
 
+        <form action="${pageContext.request.contextPath}/search" method="get" class="header-search">
+            <input type="text" name="keyword" class="form-control" placeholder="搜索帖子 / 标签 / 话题">
+            <button type="submit" class="btn btn-sm btn-ghost">搜索</button>
+        </form>
+
         <div class="user-panel">
             <c:choose>
                 <c:when test="${not empty sessionScope.user}">
                     <span>你好，<strong><c:out value="${sessionScope.user.nickname}" /></strong></span>
+                    <a href="${pageContext.request.contextPath}/user/notifications" class="btn btn-sm btn-ghost">
+                        通知
+                        <c:if test="${headerUnreadNotificationCount > 0}">
+                            <span class="notification-dot"><c:out value="${headerUnreadNotificationCount}" /></span>
+                        </c:if>
+                    </a>
                     <a href="${profileUrl}" class="btn btn-sm btn-ghost">个人中心</a>
                     <a href="${pageContext.request.contextPath}/auth/logout" class="btn btn-sm btn-outline">退出</a>
                 </c:when>

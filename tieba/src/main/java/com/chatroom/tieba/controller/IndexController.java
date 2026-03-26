@@ -21,6 +21,27 @@ public class IndexController {
     public String index(Model model) {
         Map<ForumCategory, List<ForumBoard>> indexData = forumService.getIndexData();
         model.addAttribute("indexData", indexData);
+        model.addAttribute("postEntryPath", resolvePostEntryPath(indexData));
+        model.addAttribute("latestThreads", forumService.getLatestThreads(6));
+        model.addAttribute("hotThreads", forumService.getHotThreads(6));
+        model.addAttribute("essenceThreads", forumService.getEssenceThreads(6));
+        model.addAttribute("activityThreads", forumService.getActivityThreads(6));
         return "index";
+    }
+
+    private String resolvePostEntryPath(Map<ForumCategory, List<ForumBoard>> indexData) {
+        if (indexData == null || indexData.isEmpty()) {
+            return "/board/post/thread?entrySource=home";
+        }
+        for (List<ForumBoard> boards : indexData.values()) {
+            if (boards == null || boards.isEmpty()) {
+                continue;
+            }
+            ForumBoard board = boards.get(0);
+            if (board != null && board.getId() != null) {
+                return "/board/post/thread?boardId=" + board.getId() + "&entrySource=home";
+            }
+        }
+        return "/board/post/thread?entrySource=home";
     }
 }

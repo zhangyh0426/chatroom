@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.chatroom.tieba.mapper.NotificationMapper">
+
+    <insert id="insert" parameterType="com.chatroom.tieba.entity.ForumNotification" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO forum_notification(
+            user_id,
+            actor_user_id,
+            notification_type,
+            title,
+            content,
+            target_type,
+            target_id,
+            target_url,
+            is_read,
+            created_at
+        )
+        VALUES(
+            #{userId},
+            #{actorUserId},
+            #{notificationType},
+            #{title},
+            #{content},
+            #{targetType},
+            #{targetId},
+            #{targetUrl},
+            #{isRead},
+            NOW()
+        )
+    </insert>
+
+    <select id="findByUserId" resultType="com.chatroom.tieba.vo.NotificationVO">
+        SELECT n.*,
+               actor.nickname AS actor_nickname,
+               actor.avatar_path AS actor_avatar
+        FROM forum_notification n
+        LEFT JOIN forum_user_profile actor ON actor.user_id = n.actor_user_id
+        WHERE n.user_id = #{userId}
+        ORDER BY n.created_at DESC, n.id DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="findByUserIdByAvatar" resultType="com.chatroom.tieba.vo.NotificationVO">
+        SELECT n.*,
+               actor.nickname AS actor_nickname,
+               actor.avatar AS actor_avatar
+        FROM forum_notification n
+        LEFT JOIN forum_user_profile actor ON actor.user_id = n.actor_user_id
+        WHERE n.user_id = #{userId}
+        ORDER BY n.created_at DESC, n.id DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="countByUserId" resultType="int">
+        SELECT COUNT(*)
+        FROM forum_notification
+        WHERE user_id = #{userId}
+    </select>
+
+    <select id="countUnreadByUserId" resultType="int">
+        SELECT COUNT(*)
+        FROM forum_notification
+        WHERE user_id = #{userId}
+          AND is_read = 0
+    </select>
+
+    <update id="markAllReadByUserId">
+        UPDATE forum_notification
+        SET is_read = 1
+        WHERE user_id = #{userId}
+          AND is_read = 0
+    </update>
+
+</mapper>

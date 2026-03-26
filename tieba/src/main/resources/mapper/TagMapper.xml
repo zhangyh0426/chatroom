@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.chatroom.tieba.mapper.TagMapper">
+
+    <select id="findByNormalizedName" resultType="com.chatroom.tieba.entity.ForumTag">
+        SELECT *
+        FROM forum_tag
+        WHERE normalized_name = #{normalizedName}
+          AND status = 1
+        LIMIT 1
+    </select>
+
+    <insert id="insert" parameterType="com.chatroom.tieba.entity.ForumTag" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO forum_tag(name, normalized_name, status, created_at)
+        VALUES(#{name}, #{normalizedName}, 1, NOW())
+    </insert>
+
+    <select id="findByThreadId" resultType="com.chatroom.tieba.entity.ForumTag">
+        SELECT tag.*
+        FROM forum_thread_tag tt
+        JOIN forum_tag tag ON tag.id = tt.tag_id
+        WHERE tt.thread_id = #{threadId}
+        ORDER BY tag.id ASC
+    </select>
+
+</mapper>

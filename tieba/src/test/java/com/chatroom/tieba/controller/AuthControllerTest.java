@@ -141,13 +141,16 @@ class AuthControllerTest {
     }
 
     @Test
-    void profileTemplateShouldEscapeFlashMessages() throws Exception {
+    void profileTemplateShouldEscapeFlashMessagesAndExposeUnifiedPostingEntry() throws Exception {
         String template = java.nio.file.Files.readString(
                 java.nio.file.Path.of("src/main/webapp/WEB-INF/jsp/user/profile.jsp"),
                 java.nio.charset.StandardCharsets.UTF_8);
 
         assertTrue(template.contains("<c:out value=\"${error}\" />"));
         assertTrue(template.contains("<c:out value=\"${success}\" />"));
+        assertTrue(template.contains(">我要发帖<"));
+        assertTrue(template.contains("<c:param name=\"entrySource\" value=\"profile\" />"));
+        assertTrue(template.contains("统一发帖页"));
         assertFalse(template.contains("${error}</div>"));
         assertFalse(template.contains("${success}</div>"));
     }
@@ -159,7 +162,7 @@ class AuthControllerTest {
                 java.nio.charset.StandardCharsets.UTF_8);
 
         assertTrue(template.contains("<c:param name=\"returnTo\" value=\"/chat/rooms#rooms-lobby\" />"));
-        assertTrue(template.contains("<c:param name=\"returnTo\" value=\"/user/profile\" />"));
+        assertTrue(template.contains("<c:set var=\"profileUrl\" value=\"${pageContext.request.contextPath}/user/profile\" />"));
         assertTrue(template.contains("<a href=\"${interestGroupsUrl}\">兴趣群组</a>"));
     }
 
@@ -169,8 +172,12 @@ class AuthControllerTest {
                 java.nio.file.Path.of("src/main/webapp/WEB-INF/jsp/index.jsp"),
                 java.nio.charset.StandardCharsets.UTF_8);
 
+        assertTrue(template.contains("我要发帖"));
+        assertTrue(template.contains("${postEntryUrl}"));
+        assertTrue(template.contains("<c:set var=\"postEntryUrl\" value=\"${pageContext.request.contextPath}${postEntryPath}\" />"));
         assertTrue(template.contains("浏览兴趣群组"));
         assertTrue(template.contains("${interestGroupsEntryUrl}"));
+        assertFalse(template.contains("name=\"returnTo\" value=\"${postEntryPath}\""));
         assertFalse(template.contains("href=\"#board-zone\" class=\"btn btn-ghost\">浏览兴趣分区</a>"));
     }
 
