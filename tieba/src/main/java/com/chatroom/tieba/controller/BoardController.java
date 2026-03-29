@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import java.io.File;
 import java.io.IOException;
@@ -96,13 +97,14 @@ public class BoardController {
                                @RequestParam(value = "tagNames", required = false) String tagNames,
                                @RequestParam(value = "entrySource", defaultValue = "home") String entrySource,
                                @RequestParam(value = "imageFiles", required = false) MultipartFile[] imageFiles,
-                               HttpSession session,
+                               HttpServletRequest request,
                                RedirectAttributes redirectAttributes) {
         String normalizedEntrySource = normalizeEntrySource(entrySource);
         redirectAttributes.addFlashAttribute("title", title == null ? "" : title.trim());
         redirectAttributes.addFlashAttribute("content", content == null ? "" : content.trim());
         redirectAttributes.addFlashAttribute("threadType", threadType == null ? "DISCUSSION" : threadType.trim());
         redirectAttributes.addFlashAttribute("tagNames", tagNames == null ? "" : tagNames.trim());
+        HttpSession session = request.getSession(false);
         UserSessionDTO user = currentUser(session);
         if (user == null) {
             return buildLoginRedirect(boardId, normalizedEntrySource);
@@ -257,7 +259,7 @@ public class BoardController {
     }
 
     private UserSessionDTO currentUser(HttpSession session) {
-        return (UserSessionDTO) session.getAttribute("user");
+        return session == null ? null : (UserSessionDTO) session.getAttribute("user");
     }
 
     private List<ForumThreadImage> storeThreadImages(Long userId, MultipartFile[] imageFiles) throws IOException {
