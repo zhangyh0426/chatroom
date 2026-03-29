@@ -257,7 +257,7 @@ public class BoardController {
     }
 
     private UserSessionDTO currentUser(HttpSession session) {
-        return (UserSessionDTO) session.getAttribute("user");
+        return session == null ? null : (UserSessionDTO) session.getAttribute("user");
     }
 
     private List<ForumThreadImage> storeThreadImages(Long userId, MultipartFile[] imageFiles) throws IOException {
